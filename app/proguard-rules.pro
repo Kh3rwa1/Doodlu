@@ -1,0 +1,4 @@
+-keep class com.doodlu.app.** { *; }
+-keepattributes *Annotation*
+-dontwarn okhttp3.**
+-dontwarn okio.**

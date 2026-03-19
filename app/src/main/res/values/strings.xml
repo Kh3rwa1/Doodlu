@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Doodlu</string>
+    <string name="wallpaper_label">Doodlu Live Wallpaper</string>
+    <string name="wallpaper_description">Real-time collaborative drawing on your lock screen. Your screen, their heart.</string>
+</resources>
