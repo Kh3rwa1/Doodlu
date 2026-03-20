@@ -93,9 +93,7 @@ fun DoodluNavGraph(
         composable(Screen.TicTacToe.route) {
             TicTacToeScreen(
                 onBackToDrawing = {
-                    navController.navigate(Screen.Drawing.route) {
-                        popUpTo(Screen.TicTacToe.route) { inclusive = true }
-                    }
+                    navController.popBackStack()
                 }
             )
         }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.draw.scale
 import androidx.compose.material3.*
@@ -38,13 +39,23 @@ fun DrawingScreen(
     onSetWallpaper: () -> Unit
 ) {
     val context = LocalContext.current
-    val scope   = rememberCoroutineScope()
 
     var strokes            by remember { mutableStateOf(listOf<DrawPath>()) }
     var selectedColorHex   by remember { mutableStateOf("#FF8A65") }
     var selectedColor      by remember { mutableStateOf(DrawColorCoral) }
     var strokeWidth        by remember { mutableStateOf(5f) }
     var isEraser           by remember { mutableStateOf(false) }
+
+    val currentMode by SyncManager.currentMode.collectAsState()
+    
+    // Thread-safe navigation observation
+    LaunchedEffect(currentMode) {
+        if (currentMode == "tictactoe") {
+            onNavigateToTicTacToe()
+        }
+    }
+
+    // Canvas state
     var partnerCursor      by remember { mutableStateOf<Offset?>(null) }
     var showMenu           by remember { mutableStateOf(false) }
     var showClearDialog    by remember { mutableStateOf(false) }
@@ -82,24 +93,13 @@ fun DrawingScreen(
         val canvasListener = object : SyncManager.CanvasListener {
             override fun onClearCanvas() { strokes = emptyList() }
         }
-        var hasNavigated = false
-        val modeListener = object : SyncManager.ModeListener {
-            override fun onModeSwitch(mode: String) {
-                if (mode == "tictactoe" && !hasNavigated) {
-                    hasNavigated = true
-                    onNavigateToTicTacToe()
-                }
-            }
-        }
         SyncManager.addStrokeListener(strokeListener)
         SyncManager.addCursorListener(cursorListener)
         SyncManager.addCanvasListener(canvasListener)
-        SyncManager.addModeListener(modeListener)
         onDispose {
             SyncManager.removeStrokeListener(strokeListener)
             SyncManager.removeCursorListener(cursorListener)
             SyncManager.removeCanvasListener(canvasListener)
-            SyncManager.removeModeListener(modeListener)
         }
     }
 
@@ -219,7 +219,6 @@ fun DrawingScreen(
                         .background(KawaiiCard.copy(alpha = 0.85f))
                         .clickable {
                             SyncManager.sendSwitchMode("tictactoe")
-                            onNavigateToTicTacToe()
                         }
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
@@ -451,7 +450,7 @@ fun DrawingScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Filled.Undo,
+                        Icons.AutoMirrored.Filled.Undo,
                         contentDescription = "Undo",
                         tint = KawaiiTextSec,
                         modifier = Modifier.size(18.dp)

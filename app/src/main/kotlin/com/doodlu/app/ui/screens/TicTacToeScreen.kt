@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,11 +36,29 @@ fun TicTacToeScreen(onBackToDrawing: () -> Unit) {
     var showConfetti by remember { mutableStateOf(false) }
     var prevWinner   by remember { mutableStateOf<String?>(null) }
     val isConnected  = connState == com.doodlu.app.sync.ConnectionState.CONNECTED
+    val currentMode  by SyncManager.currentMode.collectAsState()
+
+    // ── Safe Navigation State Handling ────────────────────────────
+    var hasNavigatedBack by remember { mutableStateOf(false) }
+    
+    val handleBack = {
+        if (!hasNavigatedBack) {
+            hasNavigatedBack = true
+            SyncManager.sendSwitchMode("whiteboard")
+            onBackToDrawing()
+        }
+    }
+
+    LaunchedEffect(currentMode) {
+        if (currentMode == "whiteboard" && !hasNavigatedBack) {
+            hasNavigatedBack = true
+            onBackToDrawing()
+        }
+    }
 
     // Handle system back button / gesture
     BackHandler {
-        SyncManager.sendSwitchMode("whiteboard")
-        onBackToDrawing()
+        handleBack()
     }
 
     DisposableEffect(Unit) {
@@ -53,16 +71,9 @@ fun TicTacToeScreen(onBackToDrawing: () -> Unit) {
                 }
             }
         }
-        val modeListener = object : SyncManager.ModeListener {
-            override fun onModeSwitch(mode: String) {
-                if (mode == "whiteboard") onBackToDrawing()
-            }
-        }
         SyncManager.addGameStateListener(gsListener)
-        SyncManager.addModeListener(modeListener)
         onDispose {
             SyncManager.removeGameStateListener(gsListener)
-            SyncManager.removeModeListener(modeListener)
         }
     }
 
@@ -117,13 +128,12 @@ fun TicTacToeScreen(onBackToDrawing: () -> Unit) {
                             },
                             indication = null
                         ) {
-                            SyncManager.sendSwitchMode("whiteboard")
-                            onBackToDrawing()
+                            handleBack()
                         },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Filled.ArrowBack,
+                        Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = KawaiiTextSec,
                         modifier = Modifier.size(18.dp)
@@ -235,8 +245,7 @@ fun TicTacToeScreen(onBackToDrawing: () -> Unit) {
                 emoji = "✏️",
                 modifier = Modifier.fillMaxWidth(0.75f),
                 onClick = {
-                    SyncManager.sendSwitchMode("whiteboard")
-                    onBackToDrawing()
+                    handleBack()
                 }
             )
 
@@ -295,6 +304,7 @@ fun PlayerBadge(symbol: String, label: String, isActive: Boolean, color: Color) 
 }
 
 // ── Kawaii Tic-Tac-Toe Board ───────────────────────────────────────────────
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun KawaiiTicTacToeBoard(
     state: TicTacToeState,

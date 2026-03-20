@@ -52,6 +52,21 @@ class DoodluWallpaperService : WallpaperService() {
         private val currentPoints = mutableListOf<Pair<Float, Float>>()
         private var lastSentIndex = 0
 
+        // Cursor fade: track when we last received a partner cursor update
+        private var lastCursorTime = 0L
+        private val CURSOR_FADE_MS = 3000L  // cursor fades after 3s of no updates
+
+        // Periodic redraw for smooth animations (~20fps when visible)
+        private val FRAME_INTERVAL_MS = 50L
+        private val frameRunnable = object : Runnable {
+            override fun run() {
+                if (isVisible) {
+                    drawFrame()
+                    renderHandler.postDelayed(this, FRAME_INTERVAL_MS)
+                }
+            }
+        }
+
         // Only redraw when we have new data
         @Volatile private var needsRedraw = false
 
@@ -124,7 +139,8 @@ class DoodluWallpaperService : WallpaperService() {
                     renderHandler.post {
                         partnerX = x
                         partnerY = y
-                        if (isVisible) scheduleRedraw()
+                        lastCursorTime = System.currentTimeMillis()
+                        needsRedraw = true
                     }
                 }
             }
@@ -225,9 +241,13 @@ class DoodluWallpaperService : WallpaperService() {
                         SyncManager.resumeForWallpaper(finalRoomId, finalUserId)
                     }
                 }
-                renderHandler.post { scheduleRedraw() }
+                // Start the periodic frame loop
+                renderHandler.removeCallbacks(frameRunnable)
+                renderHandler.post(frameRunnable)
             } else {
                 Log.d(TAG, "Wallpaper HIDDEN — requesting connection pause")
+                // Stop the frame loop
+                renderHandler.removeCallbacks(frameRunnable)
                 // Uses smart pause: only actually pauses if Activity isn't active
                 SyncManager.pauseForWallpaper()
             }
@@ -320,7 +340,6 @@ class DoodluWallpaperService : WallpaperService() {
         }
 
         private fun drawFrame() {
-            if (!needsRedraw) return
             val holder = surfaceHolder
             var canvas: Canvas? = null
             try {
@@ -349,12 +368,40 @@ class DoodluWallpaperService : WallpaperService() {
             // In-progress stroke
             if (currentPoints.size > 1) drawStroke(canvas, Stroke(currentPoints.toList(), "#FFFFFF", 4f))
 
-            // Partner cursor with glow
+            // Partner cursor with animated glow + fade
             if (partnerX >= 0 && partnerY >= 0) {
-                canvas.drawCircle(partnerX, partnerY, 18f, glowPaint)
-                canvas.drawCircle(partnerX, partnerY, 8f, cursorPaint)
-                canvas.drawCircle(partnerX, partnerY, 4f, whiteDotPaint)
+                val timeSinceCursor = System.currentTimeMillis() - lastCursorTime
+                val cursorAlpha = if (timeSinceCursor < CURSOR_FADE_MS) {
+                    1f - (timeSinceCursor.toFloat() / CURSOR_FADE_MS)
+                } else 0f
+
+                if (cursorAlpha > 0f) {
+                    val breathe = (Math.sin(System.currentTimeMillis() / 500.0) * 0.3 + 0.7).toFloat()
+                    glowPaint.alpha = (80 * cursorAlpha * breathe).toInt()
+                    cursorPaint.alpha = (255 * cursorAlpha).toInt()
+                    whiteDotPaint.alpha = (255 * cursorAlpha).toInt()
+                    canvas.drawCircle(partnerX, partnerY, 18f, glowPaint)
+                    canvas.drawCircle(partnerX, partnerY, 8f, cursorPaint)
+                    canvas.drawCircle(partnerX, partnerY, 4f, whiteDotPaint)
+                    // Reset alphas for next frame
+                    glowPaint.alpha = 80
+                    cursorPaint.alpha = 255
+                    whiteDotPaint.alpha = 255
+                }
             }
+
+            // Small branding watermark to show it's live
+            val now = System.currentTimeMillis()
+            val breatheAlpha = ((Math.sin(now / 2000.0) * 30 + 50).toInt()).coerceIn(20, 80)
+            val brandPaint = Paint().apply {
+                color = Color.WHITE
+                alpha = breatheAlpha
+                textSize = 24f
+                isAntiAlias = true
+                textAlign = Paint.Align.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+            }
+            canvas.drawText("Doodlu ❤️", w / 2f, h - 48f, brandPaint)
         }
 
         private fun drawStroke(canvas: Canvas, stroke: Stroke) {
