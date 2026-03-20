@@ -104,7 +104,7 @@ fun WallpaperSetupScreen(
                 text = "One last thing! ✨",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 26.sp,
+                fontSize = 28.sp,
                 color = KawaiiTextPri,
                 textAlign = TextAlign.Center
             )
@@ -116,7 +116,7 @@ fun WallpaperSetupScreen(
                 text = "Set Doodlu as your live wallpaper so you can see each other's doodles on your lock screen and home screen — in real time 💕",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.Normal,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 color = KawaiiTextSec,
                 textAlign = TextAlign.Center,
                 lineHeight = 24.sp
@@ -155,7 +155,7 @@ fun WallpaperSetupScreen(
                     text = "I'll do it later from Settings ⚙️",
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
+                    fontSize = 16.sp,
                     color = KawaiiPurple
                 )
             }
@@ -352,7 +352,7 @@ private fun StepsHintCard() {
             "How it works",
             fontFamily = NunitoFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 13.sp,
+            fontSize = 15.sp,
             color = KawaiiPink
         )
         StepRow("1", "Tap 'Set as Wallpaper' below 👇")

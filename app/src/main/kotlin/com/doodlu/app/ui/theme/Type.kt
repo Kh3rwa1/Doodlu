@@ -18,81 +18,93 @@ val NunitoFamily = FontFamily(
 
 // ── Typography ─────────────────────────────────────────────────────────────
 val DoodluTypography = Typography(
-    // Logo: ExtraBold 36sp
+    // Logo: ExtraBold 40sp
     displayLarge = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.ExtraBold,
-        fontSize = 36.sp,
+        fontSize = 40.sp,
+        letterSpacing = 0.5.sp,
         color = KawaiiTextPri
     ),
-    // Section headers: Bold 24sp
+    // Section headers: Bold 28sp
     headlineLarge = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
+        fontSize = 28.sp,
+        letterSpacing = 0.3.sp,
         color = KawaiiTextPri
     ),
     headlineMedium = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 20.sp,
+        fontSize = 24.sp,
+        letterSpacing = 0.3.sp,
         color = KawaiiTextPri
     ),
-    // Card headers / Labels: SemiBold 16sp
+    // Card headers / Labels: SemiBold 20sp
     titleLarge = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp,
+        fontSize = 22.sp,
+        letterSpacing = 0.3.sp,
         color = KawaiiTextPri
     ),
     titleMedium = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp,
+        fontSize = 18.sp,
+        letterSpacing = 0.3.sp,
         color = KawaiiTextPri
     ),
     titleSmall = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 14.sp,
+        fontSize = 16.sp,
+        letterSpacing = 0.2.sp,
         color = KawaiiTextSec
     ),
-    // Body: Regular 16sp
+    // Body: Regular 18sp
     bodyLarge = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
+        fontSize = 18.sp,
+        lineHeight = 26.sp,
         color = KawaiiTextPri
     ),
     bodyMedium = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
         color = KawaiiTextSec
     ),
     bodySmall = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 12.sp,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
         color = KawaiiTextSec
     ),
-    // Button text: SemiBold 16sp
+    // Button text: SemiBold 18sp
     labelLarge = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp,
+        fontSize = 18.sp,
+        letterSpacing = 0.5.sp,
         color = KawaiiCard
     ),
     labelMedium = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 13.sp,
+        fontSize = 15.sp,
+        letterSpacing = 0.3.sp,
         color = KawaiiTextSec
     ),
     labelSmall = TextStyle(
         fontFamily = NunitoFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 11.sp,
+        fontSize = 13.sp,
+        letterSpacing = 0.2.sp,
         color = KawaiiTextSec
     ),
 )

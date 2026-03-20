@@ -82,9 +82,13 @@ fun DrawingScreen(
         val canvasListener = object : SyncManager.CanvasListener {
             override fun onClearCanvas() { strokes = emptyList() }
         }
+        var hasNavigated = false
         val modeListener = object : SyncManager.ModeListener {
             override fun onModeSwitch(mode: String) {
-                if (mode == "tictactoe") onNavigateToTicTacToe()
+                if (mode == "tictactoe" && !hasNavigated) {
+                    hasNavigated = true
+                    onNavigateToTicTacToe()
+                }
             }
         }
         SyncManager.addStrokeListener(strokeListener)
@@ -191,10 +195,10 @@ fun DrawingScreen(
                     text = "Doodlu",
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
+                    fontSize = 20.sp,
                     color = KawaiiPink
                 )
-                Text(" ❤️", fontSize = 14.sp)
+                Text(" ❤️", fontSize = 16.sp)
             }
 
             // Center: connection indicator
@@ -223,7 +227,7 @@ fun DrawingScreen(
                         text = "🎮 Play",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         color = KawaiiTextSec
                     )
                 }

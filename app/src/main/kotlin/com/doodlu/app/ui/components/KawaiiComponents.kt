@@ -134,7 +134,7 @@ fun DoodluLogo(
                 text = "your screen, their heart 💕",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.Normal,
-                fontSize = 14.sp,
+                fontSize = 16.sp,
                 color = KawaiiTextSec
             )
         }
@@ -205,7 +205,7 @@ fun CodeBubble(
                 text = char.toString(),
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = 24.sp,
+                fontSize = 26.sp,
                 color = KawaiiTextPri,
                 letterSpacing = 0.sp
             )
@@ -352,7 +352,7 @@ fun KawaiiPrimaryButton(
             text = if (emoji.isNotEmpty()) "$text $emoji" else text,
             fontFamily = NunitoFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
+            fontSize = 18.sp,
             color = Color.White,
             letterSpacing = 0.5.sp
         )
@@ -425,7 +425,7 @@ fun KawaiiSecondaryButton(
             text = if (emoji.isNotEmpty()) "$text $emoji" else text,
             fontFamily = NunitoFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
+            fontSize = 18.sp,
             color = Color.White,
             letterSpacing = 0.5.sp
         )
@@ -613,7 +613,7 @@ fun KawaiiConnectionBadge(
             text = if (isConnected) "$playerCount online" else "connecting...",
             fontFamily = NunitoFamily,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 11.sp,
+            fontSize = 13.sp,
             color = KawaiiTextSec
         )
     }

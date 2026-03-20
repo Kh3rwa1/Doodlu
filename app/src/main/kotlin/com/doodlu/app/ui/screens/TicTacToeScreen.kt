@@ -1,5 +1,6 @@
 package com.doodlu.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -35,6 +36,12 @@ fun TicTacToeScreen(onBackToDrawing: () -> Unit) {
     var showConfetti by remember { mutableStateOf(false) }
     var prevWinner   by remember { mutableStateOf<String?>(null) }
     val isConnected  = connState == com.doodlu.app.sync.ConnectionState.CONNECTED
+
+    // Handle system back button / gesture
+    BackHandler {
+        SyncManager.sendSwitchMode("whiteboard")
+        onBackToDrawing()
+    }
 
     DisposableEffect(Unit) {
         val gsListener = object : SyncManager.GameStateListener {
@@ -128,7 +135,7 @@ fun TicTacToeScreen(onBackToDrawing: () -> Unit) {
                         "Tic-Tac-Toe 🎮",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 20.sp,
+                        fontSize = 22.sp,
                         color = KawaiiTextPri
                     )
                 }
@@ -154,7 +161,7 @@ fun TicTacToeScreen(onBackToDrawing: () -> Unit) {
                     color = KawaiiPink
                 )
 
-                Text("vs", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = KawaiiTextSec)
+                Text("vs", fontFamily = NunitoFamily, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = KawaiiTextSec)
 
                 PlayerBadge(
                     symbol = "O",
@@ -272,7 +279,7 @@ fun PlayerBadge(symbol: String, label: String, isActive: Boolean, color: Color) 
                 symbol,
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = 22.sp,
+                fontSize = 24.sp,
                 color = if (isActive) Color.White else color
             )
         }
@@ -281,7 +288,7 @@ fun PlayerBadge(symbol: String, label: String, isActive: Boolean, color: Color) 
             label,
             fontFamily = NunitoFamily,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 12.sp,
+            fontSize = 14.sp,
             color = if (isActive) color else KawaiiTextSec
         )
     }
@@ -464,14 +471,14 @@ fun KawaiiConfettiOverlay(isWinner: Boolean) {
         ) {
             Text(
                 text = if (isWinner) "🎉" else "😅",
-                fontSize = 72.sp
+                fontSize = 78.sp
             )
             Spacer(Modifier.height(12.dp))
             Text(
                 text = if (isWinner) "You won!" else "They got you!",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = 28.sp,
+                fontSize = 30.sp,
                 color = if (isWinner) KawaiiPink else KawaiiPurple
             )
             Spacer(Modifier.height(4.dp))
@@ -479,7 +486,7 @@ fun KawaiiConfettiOverlay(isWinner: Boolean) {
                 text = if (isWinner) "You're amazing 💕" else "Better luck next time 💪",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.Normal,
-                fontSize = 14.sp,
+                fontSize = 16.sp,
                 color = KawaiiTextSec
             )
         }

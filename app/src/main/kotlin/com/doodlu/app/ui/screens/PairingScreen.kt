@@ -98,30 +98,10 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
         spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow), label = "js")
     val footerAlpha by animateFloatAsState(stageAlpha(5), tween(600), label = "fa")
 
-    Box(modifier = Modifier.fillMaxSize()) {
-
-        // ═══════════════════════════════════════════════════════════════
-        // PREMIUM DARK AURORA BACKGROUND
-        // ═══════════════════════════════════════════════════════════════
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF0D0221),
-                            Color(0xFF150734),
-                            Color(0xFF1A0A3E),
-                            Color(0xFF21094E),
-                            Color(0xFF1A0A3E),
-                            Color(0xFF0F0628)
-                        )
-                    )
-                )
-        )
-
-        // Animated aurora orbs
-        AuroraOrbs(modifier = Modifier.fillMaxSize())
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(kawaiiBgGradient)
+    ) {
 
         // Floating particles (subtle)
         FloatingParticles(modifier = Modifier.fillMaxSize())
@@ -138,7 +118,7 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
         ) {
             CatVideoHero(modifier = Modifier.fillMaxSize())
 
-            // Bottom fade into dark aurora
+            // Bottom fade into kawaii background
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -148,8 +128,8 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color(0xFF0D0221).copy(alpha = 0.7f),
-                                Color(0xFF0D0221)
+                                KawaiiBlush.copy(alpha = 0.7f),
+                                KawaiiBlush
                             )
                         )
                     )
@@ -164,7 +144,7 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFF0D0221).copy(alpha = 0.6f),
+                                KawaiiBlush.copy(alpha = 0.6f),
                                 Color.Transparent
                             )
                         )
@@ -200,8 +180,8 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
                     text = "Draw together, stay together 💕",
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                    color = Color.White.copy(alpha = 0.65f),
+                    fontSize = 17.sp,
+                    color = KawaiiTextSec,
                     textAlign = TextAlign.Center,
                     letterSpacing = 0.5.sp
                 )
@@ -210,16 +190,16 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50.dp))
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(50.dp))
+                        .background(KawaiiCodeBg)
+                        .border(1.dp, KawaiiCodeBorder.copy(alpha = 0.5f), RoundedCornerShape(50.dp))
                         .padding(horizontal = 14.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = "✨ v1.0 beta",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.sp,
-                        color = Color.White.copy(alpha = 0.5f)
+                        fontSize = 13.sp,
+                        color = KawaiiTextSec
                     )
                 }
             }
@@ -254,7 +234,7 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
                             .height(1.dp)
                             .background(
                                 Brush.horizontalGradient(
-                                    listOf(Color.Transparent, Color.White.copy(alpha = 0.15f))
+                                    listOf(Color.Transparent, KawaiiCodeBorder.copy(alpha = 0.4f))
                                 )
                             )
                     )
@@ -262,8 +242,8 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
                         text = "  💕 got a code? 💕  ",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.4f)
+                        fontSize = 14.sp,
+                        color = KawaiiTextSec
                     )
                     Box(
                         modifier = Modifier
@@ -271,7 +251,7 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
                             .height(1.dp)
                             .background(
                                 Brush.horizontalGradient(
-                                    listOf(Color.White.copy(alpha = 0.15f), Color.Transparent)
+                                    listOf(KawaiiCodeBorder.copy(alpha = 0.4f), Color.Transparent)
                                 )
                             )
                     )
@@ -350,7 +330,7 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.3f),
+                    color = KawaiiTextSec,
                     textAlign = TextAlign.Center
                 )
             }
@@ -469,7 +449,7 @@ private fun YourCodeCard(
     )
 
 
-    GlassCard(
+    KawaiiCard(
         modifier = Modifier.fillMaxWidth(),
         cornerRadius = 28.dp
     ) {
@@ -495,7 +475,7 @@ private fun YourCodeCard(
                     text = "Your secret code ✨",
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     color = Color.White
                 )
             }
@@ -518,8 +498,8 @@ private fun YourCodeCard(
                 text = "Share this with your person 💌",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.Normal,
-                fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.5f)
+                fontSize = 15.sp,
+                color = KawaiiTextSec
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -535,13 +515,11 @@ private fun YourCodeCard(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(50.dp),
                     border = BorderStroke(1.5.dp,
-                        Brush.horizontalGradient(
-                            listOf(Color.White.copy(alpha = 0.25f), Color.White.copy(alpha = 0.1f))
-                        )
+                        KawaiiCodeBorder.copy(alpha = 0.5f)
                     ),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor   = Color.White.copy(alpha = 0.7f),
-                        containerColor = Color.White.copy(alpha = 0.06f)
+                        contentColor   = KawaiiTextPri,
+                        containerColor = KawaiiInputBg
                     )
                 ) {
                     Icon(Icons.Filled.ContentCopy, null, Modifier.size(14.dp))
@@ -550,7 +528,7 @@ private fun YourCodeCard(
                         "Copy",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize   = 13.sp
+                        fontSize   = 15.sp
                     )
                 }
 
@@ -592,7 +570,7 @@ private fun JoinCard(
     onJoin: () -> Unit,
     onUseMine: () -> Unit
 ) {
-    GlassCard(
+    KawaiiCard(
         modifier = Modifier.fillMaxWidth(),
         cornerRadius = 28.dp
     ) {
@@ -604,15 +582,15 @@ private fun JoinCard(
                 text = "Join someone's room",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                color = Color.White.copy(alpha = 0.9f)
+                fontSize = 20.sp,
+                color = KawaiiTextPri
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "Enter their 6-character code below",
                 fontFamily = NunitoFamily,
-                fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.45f)
+                fontSize = 15.sp,
+                color = KawaiiTextSec
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -664,7 +642,7 @@ private fun JoinCard(
                     "Use my own code instead →",
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize   = 13.sp,
+                    fontSize   = 15.sp,
                     color      = ShimmerPink
                 )
             }
@@ -697,10 +675,10 @@ fun JoinCodeSlot(
     )
 
     val bgColor = when {
-        isFocused -> Color.White.copy(alpha = 0.12f)
-        else -> Color.White.copy(alpha = 0.06f)
+        isFocused -> KawaiiInputFocus
+        else -> KawaiiInputBg
     }
-    val borderColor = if (isFocused) KawaiiPink.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.15f)
+    val borderColor = if (isFocused) KawaiiPink.copy(alpha = 0.7f) else KawaiiCodeBorder.copy(alpha = 0.5f)
 
     Box(
         modifier = Modifier
@@ -755,8 +733,8 @@ fun JoinCodeSlot(
                 text       = char,
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.ExtraBold,
-                fontSize   = 22.sp,
-                color      = Color.White,
+                fontSize   = 24.sp,
+                color      = KawaiiTextPri,
                 modifier   = Modifier.scale(charScale)
             )
         } else if (isFocused) {

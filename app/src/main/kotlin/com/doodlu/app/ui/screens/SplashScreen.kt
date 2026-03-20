@@ -85,23 +85,9 @@ fun SplashScreen(onSplashDone: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF0D0221),
-                        Color(0xFF150734),
-                        Color(0xFF1A0A3E),
-                        Color(0xFF21094E),
-                        Color(0xFF1A0A3E),
-                        Color(0xFF0F0628)
-                    )
-                )
-            ),
+            .background(kawaiiBgGradient),
         contentAlignment = Alignment.Center
     ) {
-        // Aurora orbs for premium feel
-        AuroraOrbs(modifier = Modifier.fillMaxSize())
-
         // Floating particles (subtle)
         FloatingParticles(modifier = Modifier.fillMaxSize())
 
@@ -113,7 +99,7 @@ fun SplashScreen(onSplashDone: () -> Unit) {
                 .alpha(logoAlpha)
         ) {
             DoodluLogo(
-                fontSize = 48,
+                fontSize = 52,
                 showTagline = false
             )
 
@@ -124,8 +110,8 @@ fun SplashScreen(onSplashDone: () -> Unit) {
                 text = "your screen, their heart 💕",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.Normal,
-                fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 16.sp,
+                color = KawaiiTextSec,
                 modifier = Modifier.alpha(taglineAlpha)
             )
 

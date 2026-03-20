@@ -75,7 +75,7 @@ fun SettingsScreen(
                     "Leave Room? 🥺",
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
+                    fontSize = 22.sp,
                     color = KawaiiTextPri
                 )
             },
@@ -163,7 +163,7 @@ fun SettingsScreen(
                     "Settings ⚙️",
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
+                    fontSize = 22.sp,
                     color = KawaiiTextPri
                 )
 
@@ -198,7 +198,7 @@ fun SettingsScreen(
                 Text(
                     "Room Code",
                     fontFamily = NunitoFamily,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     color = KawaiiTextSec
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -242,7 +242,7 @@ fun SettingsScreen(
                     Text(
                         "Connection",
                         fontFamily = NunitoFamily,
-                        fontSize = 14.sp,
+                        fontSize = 16.sp,
                         color = KawaiiTextSec
                     )
                     KawaiiConnectionBadge(
@@ -306,13 +306,13 @@ fun SettingsScreen(
                 Text(
                     "Doodlu v2.1",
                     fontFamily = NunitoFamily,
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     color = KawaiiTextSec
                 )
                 Text(
                     "made with 💕 for people in love",
                     fontFamily = NunitoFamily,
-                    fontSize = 11.sp,
+                    fontSize = 13.sp,
                     color = KawaiiPurple
                 )
             }
@@ -373,13 +373,13 @@ private fun WallpaperStatusCard(
                         "Doodlu is your wallpaper",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 16.sp,
                         color = KawaiiGreen
                     )
                     Text(
                         "Your doodles show up on your lock screen in real time 💕",
                         fontFamily = NunitoFamily,
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         color = KawaiiGreen.copy(alpha = 0.75f),
                         lineHeight = 16.sp
                     )
@@ -403,7 +403,7 @@ private fun WallpaperStatusCard(
                 Text(
                     "Set it now so your partner's doodles appear on your lock screen!",
                     fontFamily = NunitoFamily,
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     color = KawaiiTextSec,
                     textAlign = TextAlign.Center,
                     lineHeight = 17.sp
@@ -427,7 +427,7 @@ private fun WallpaperStatusCard(
             "Wallpaper Screen",
             fontFamily = NunitoFamily,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
+            fontSize = 16.sp,
             color = KawaiiTextPri
         )
         Spacer(modifier = Modifier.height(8.dp))
