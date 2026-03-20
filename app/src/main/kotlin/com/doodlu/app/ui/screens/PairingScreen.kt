@@ -18,6 +18,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -71,74 +73,89 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
     val canJoin  = joinCode.length == 6 && !isJoining
     val focusRequesters = remember { Array(6) { FocusRequester() } }
 
-    // Content entrance animation
-    var contentVisible by remember { mutableStateOf(false) }
-    val contentAlpha by animateFloatAsState(
-        targetValue = if (contentVisible) 1f else 0f,
-        animationSpec = tween(600, delayMillis = 300),
-        label = "alpha"
-    )
-    val contentSlide by animateFloatAsState(
-        targetValue = if (contentVisible) 0f else 40f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-        label = "slide"
-    )
-    LaunchedEffect(Unit) { contentVisible = true }
+    // ── Staggered entrance animations ────────────────────────────────
+    var stage by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(200); stage = 1   // hero
+        kotlinx.coroutines.delay(250); stage = 2   // logo
+        kotlinx.coroutines.delay(200); stage = 3   // code card
+        kotlinx.coroutines.delay(200); stage = 4   // join card
+        kotlinx.coroutines.delay(200); stage = 5   // footer
+    }
+
+    fun stageAlpha(s: Int) = if (stage >= s) 1f else 0f
+    fun stageSlide(s: Int) = if (stage >= s) 0f else 50f
+
+    val heroAlpha by animateFloatAsState(stageAlpha(1), tween(500), label = "ha")
+    val logoAlpha by animateFloatAsState(stageAlpha(2), tween(600), label = "la")
+    val logoSlide by animateFloatAsState(stageSlide(2),
+        spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow), label = "ls")
+    val codeAlpha by animateFloatAsState(stageAlpha(3), tween(500), label = "ca")
+    val codeSlide by animateFloatAsState(stageSlide(3),
+        spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow), label = "cs")
+    val joinAlpha by animateFloatAsState(stageAlpha(4), tween(500), label = "ja")
+    val joinSlide by animateFloatAsState(stageSlide(4),
+        spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow), label = "js")
+    val footerAlpha by animateFloatAsState(stageAlpha(5), tween(600), label = "fa")
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // ════════════════════════════════════════════════════════════════
-        // BACKGROUND GRADIENT — full bleed
-        // ════════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════════
+        // PREMIUM DARK AURORA BACKGROUND
+        // ═══════════════════════════════════════════════════════════════
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFFFF0F5),
-                            Color(0xFFF5E8FF),
-                            Color(0xFFFFE8F5),
-                            Color(0xFFFFF5E8)
+                            Color(0xFF0D0221),
+                            Color(0xFF150734),
+                            Color(0xFF1A0A3E),
+                            Color(0xFF21094E),
+                            Color(0xFF1A0A3E),
+                            Color(0xFF0F0628)
                         )
                     )
                 )
         )
 
-        // Floating particles behind everything
+        // Animated aurora orbs
+        AuroraOrbs(modifier = Modifier.fillMaxSize())
+
+        // Floating particles (subtle)
         FloatingParticles(modifier = Modifier.fillMaxSize())
 
-        // ════════════════════════════════════════════════════════════════
-        // HERO CAT VIDEO — top 40% of screen, edge-to-edge
-        // ════════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════════
+        // HERO CAT VIDEO — top portion, fading into aurora
+        // ═══════════════════════════════════════════════════════════════
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(screenH * 0.42f)
+                .height(screenH * 0.40f)
                 .align(Alignment.TopCenter)
+                .graphicsLayer { alpha = heroAlpha }
         ) {
-            // Looping WebM cat video
-            CatVideoHero(
-                modifier = Modifier.fillMaxSize()
-            )
+            CatVideoHero(modifier = Modifier.fillMaxSize())
 
-            // Soft bottom fade so video blends into content
+            // Bottom fade into dark aurora
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(80.dp)
+                    .height(120.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color(0xFFFFF0F5).copy(alpha = 0.95f)
+                                Color(0xFF0D0221).copy(alpha = 0.7f),
+                                Color(0xFF0D0221)
                             )
                         )
                     )
             )
 
-            // Status bar safe area top fade
+            // Top status bar gradient
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -147,7 +164,7 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFFFFF0F5).copy(alpha = 0.6f),
+                                Color(0xFF0D0221).copy(alpha = 0.6f),
                                 Color.Transparent
                             )
                         )
@@ -155,78 +172,123 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
             )
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // SCROLLABLE CONTENT — overlaps video bottom
-        // ════════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════════
+        // SCROLLABLE CONTENT — overlaps hero
+        // ═══════════════════════════════════════════════════════════════
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .graphicsLayer {
-                    alpha         = contentAlpha
-                    translationY  = contentSlide
-                },
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Push content down so it starts below the video hero
-            Spacer(modifier = Modifier.height(screenH * 0.36f))
+            // Push below hero
+            Spacer(modifier = Modifier.height(screenH * 0.33f))
 
-            // ── Logo + tagline ────────────────────────────────────────
+            // ── Logo + tagline ─────────────────────────────────────────
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(horizontal = 24.dp)
+                modifier = Modifier
+                    .padding(horizontal = 24.dp)
+                    .graphicsLayer {
+                        alpha = logoAlpha
+                        translationY = logoSlide
+                    }
             ) {
-                DoodluLogo(fontSize = 40, showTagline = false)
-                Spacer(modifier = Modifier.height(6.dp))
+                DoodluLogo(fontSize = 44, showTagline = false)
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Draw together, stay together 💕",
                     fontFamily = NunitoFamily,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    color = KawaiiPurple,
-                    textAlign = TextAlign.Center
+                    fontSize = 15.sp,
+                    color = Color.White.copy(alpha = 0.65f),
+                    textAlign = TextAlign.Center,
+                    letterSpacing = 0.5.sp
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                // Version pill
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50.dp))
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(50.dp))
+                        .padding(horizontal = 14.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "✨ v1.0 beta",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.5f)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // ── YOUR CODE CARD ────────────────────────────────────────
-            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            // ── YOUR CODE CARD — Glassmorphism ────────────────────────
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .graphicsLayer {
+                        alpha = codeAlpha
+                        translationY = codeSlide
+                    }
+            ) {
                 YourCodeCard(
-                    myCode   = myCode,
+                    myCode    = myCode,
                     clipboard = clipboard,
-                    context  = context
+                    context   = context
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                // ── Divider with hearts ───────────────────────────────
+                // ── Gradient divider ─────────────────────────────────
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    HorizontalDivider(
-                        modifier  = Modifier.weight(1f),
-                        color     = KawaiiCodeBorder.copy(alpha = 0.4f),
-                        thickness = 1.dp
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(1.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color.Transparent, Color.White.copy(alpha = 0.15f))
+                                )
+                            )
                     )
                     Text(
                         text = "  💕 got a code? 💕  ",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize   = 12.sp,
-                        color      = KawaiiTextSec
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.4f)
                     )
-                    HorizontalDivider(
-                        modifier  = Modifier.weight(1f),
-                        color     = KawaiiCodeBorder.copy(alpha = 0.4f),
-                        thickness = 1.dp
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(1.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color.White.copy(alpha = 0.15f), Color.Transparent)
+                                )
+                            )
                     )
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+            }
 
-                // ── JOIN CARD ─────────────────────────────────────────
+            // ── JOIN CARD — Glassmorphism ─────────────────────────────
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .graphicsLayer {
+                        alpha = joinAlpha
+                        translationY = joinSlide
+                    }
+            ) {
                 JoinCard(
                     joinChars       = joinChars,
                     focusedIdx      = focusedIdx,
@@ -265,16 +327,34 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
             }
 
             // ── Footer ────────────────────────────────────────────────
-            Spacer(modifier = Modifier.height(36.dp))
-            Text(
-                text = "made with 💕 for people in love",
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.Normal,
-                fontSize = 12.sp,
-                color = KawaiiPurple,
-                textAlign = TextAlign.Center
-            )
             Spacer(modifier = Modifier.height(40.dp))
+            Column(
+                modifier = Modifier.graphicsLayer { alpha = footerAlpha },
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Gradient separator
+                Box(
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(2.dp)
+                        .clip(RoundedCornerShape(1.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(KawaiiPink.copy(alpha = 0.4f), KawaiiPurple.copy(alpha = 0.4f))
+                            )
+                        )
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "made with 💕 for people in love",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.3f),
+                    textAlign = TextAlign.Center
+                )
+            }
+            Spacer(modifier = Modifier.height(48.dp))
         }
     }
 }
@@ -284,9 +364,6 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
 // ════════════════════════════════════════════════════════════════════════════
 @Composable
 private fun CatVideoHero(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-
-    // Keep MediaPlayer alive across recompositions
     val mediaPlayerRef = remember { mutableStateOf<MediaPlayer?>(null) }
 
     DisposableEffect(Unit) {
@@ -305,23 +382,17 @@ private fun CatVideoHero(modifier: Modifier = Modifier) {
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT
                 )
                 tv.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-
                     override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
-                        // Release any previous player
                         mediaPlayerRef.value?.apply { stop(); release() }
-
                         val mp = MediaPlayer()
                         try {
-                            // Use H.264 MP4 — universally supported, has duration metadata
                             val afd = ctx.resources.openRawResourceFd(R.raw.cat_silly)
                             mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
                             afd.close()
-
                             mp.setSurface(Surface(st))
                             mp.isLooping = true
                             mp.setVolume(0f, 0f)
-
-                            mp.setOnVideoSizeChangedListener { player, videoW, videoH ->
+                            mp.setOnVideoSizeChangedListener { _, videoW, videoH ->
                                 if (videoW > 0 && videoH > 0) {
                                     applyCenterCropMatrix(tv, videoW.toFloat(), videoH.toFloat(), w.toFloat(), h.toFloat())
                                 }
@@ -335,60 +406,44 @@ private fun CatVideoHero(modifier: Modifier = Modifier) {
                                 player.start()
                             }
                             mp.setOnErrorListener { _, _, _ -> false }
-                            mp.prepare()   // synchronous — fine for local raw resource
+                            mp.prepare()
                             mediaPlayerRef.value = mp
                         } catch (e: Exception) {
                             mp.release()
                         }
                     }
-
                     override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {
                         mediaPlayerRef.value?.let { player ->
                             val vW = player.videoWidth.toFloat()
                             val vH = player.videoHeight.toFloat()
-                            if (vW > 0 && vH > 0) {
-                                applyCenterCropMatrix(tv, vW, vH, w.toFloat(), h.toFloat())
-                            }
+                            if (vW > 0 && vH > 0) applyCenterCropMatrix(tv, vW, vH, w.toFloat(), h.toFloat())
                         }
                     }
-
                     override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
                         mediaPlayerRef.value?.apply { stop(); release() }
                         mediaPlayerRef.value = null
                         return true
                     }
-
                     override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
                 }
             }
         },
-        update = { /* view is self-managed */ }
+        update = { /* self-managed */ }
     )
 }
 
-/**
- * Applies a center-crop Matrix transform to [tv] so the video
- * covers the entire view with no letterboxing/pillarboxing.
- */
 private fun applyCenterCropMatrix(
-    tv: TextureView,
-    videoW: Float, videoH: Float,
-    viewW: Float,  viewH: Float
+    tv: TextureView, videoW: Float, videoH: Float, viewW: Float, viewH: Float
 ) {
     if (viewW <= 0f || viewH <= 0f) return
     val videoAspect = videoW / videoH
     val viewAspect  = viewW  / viewH
-
     val scaleX: Float
     val scaleY: Float
     if (videoAspect > viewAspect) {
-        // Video is wider → fill height, crop sides
-        scaleX = videoAspect / viewAspect
-        scaleY = 1f
+        scaleX = videoAspect / viewAspect; scaleY = 1f
     } else {
-        // Video is taller → fill width, crop top/bottom
-        scaleX = 1f
-        scaleY = viewAspect / videoAspect
+        scaleX = 1f; scaleY = viewAspect / videoAspect
     }
     val matrix = android.graphics.Matrix()
     matrix.setScale(scaleX, scaleY, viewW / 2f, viewH / 2f)
@@ -396,7 +451,7 @@ private fun applyCenterCropMatrix(
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Your Code Card
+// Your Code Card — Premium Glassmorphism
 // ════════════════════════════════════════════════════════════════════════════
 @Composable
 private fun YourCodeCard(
@@ -404,122 +459,124 @@ private fun YourCodeCard(
     clipboard: androidx.compose.ui.platform.ClipboardManager,
     context: android.content.Context
 ) {
-    // Shimmer/pulse on the "your code" label
     val infiniteTransition = rememberInfiniteTransition(label = "glow")
     val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f, targetValue = 1f,
+        initialValue = 0.3f, targetValue = 0.6f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = EaseInOutSine),
+            animation = tween(1800, easing = EaseInOutSine),
             repeatMode = RepeatMode.Reverse
         ), label = "ga"
     )
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 12.dp,
-                shape     = RoundedCornerShape(28.dp),
-                ambientColor = KawaiiPink.copy(alpha = 0.12f),
-                spotColor    = KawaiiPurple.copy(alpha = 0.10f)
-            )
-            .clip(RoundedCornerShape(28.dp))
-            .background(Color.White.copy(alpha = 0.92f))
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 28.dp
     ) {
-        // Pill label
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(50.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(KawaiiPink.copy(alpha = glowAlpha), KawaiiPurple.copy(alpha = glowAlpha))
-                    )
-                )
-                .padding(horizontal = 18.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "Your secret code ✨",
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize   = 12.sp,
-                color      = Color.White
-            )
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        // 6 code bubbles
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment     = Alignment.CenterVertically
-        ) {
-            myCode.forEachIndexed { idx, char ->
-                CodeBubble(char = char, animDelay = idx * 60)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Share this with your person 💌",
-            fontFamily = NunitoFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize   = 13.sp,
-            color      = KawaiiTextSec
-        )
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        // Action row — copy + share
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Copy
-            OutlinedButton(
-                onClick = { clipboard.setText(AnnotatedString(myCode)) },
-                modifier = Modifier.weight(1f),
-                shape  = RoundedCornerShape(50.dp),
-                border = BorderStroke(1.5.dp, KawaiiCodeBorder),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor     = KawaiiTextSec,
-                    containerColor   = Color.Transparent
-                )
+            // Pill label with animated glow
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                KawaiiPink.copy(alpha = glowAlpha),
+                                KawaiiPurple.copy(alpha = glowAlpha)
+                            )
+                        )
+                    )
+                    .padding(horizontal = 18.dp, vertical = 6.dp)
             ) {
-                Icon(Icons.Filled.ContentCopy, null, Modifier.size(14.dp))
-                Spacer(Modifier.width(6.dp))
                 Text(
-                    "Copy",
+                    text = "Your secret code ✨",
                     fontFamily = NunitoFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize   = 13.sp
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = Color.White
                 )
             }
 
-            // Share
-            KawaiiPrimaryButton(
-                text     = "Share",
-                emoji    = "💌",
-                modifier = Modifier.weight(1f),
-                onClick  = {
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            "Join me on Doodlu! 💕 Enter code: $myCode"
-                        )
-                    }
-                    context.startActivity(Intent.createChooser(intent, "Share with your person"))
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 6 code bubbles — staggered entrance
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment     = Alignment.CenterVertically
+            ) {
+                myCode.forEachIndexed { idx, char ->
+                    CodeBubble(char = char, animDelay = idx * 80)
                 }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "Share this with your person 💌",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Normal,
+                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.5f)
             )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Action row — copy + share
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Copy button — outlined glass style
+                OutlinedButton(
+                    onClick = { clipboard.setText(AnnotatedString(myCode)) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(50.dp),
+                    border = BorderStroke(1.5.dp,
+                        Brush.horizontalGradient(
+                            listOf(Color.White.copy(alpha = 0.25f), Color.White.copy(alpha = 0.1f))
+                        )
+                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor   = Color.White.copy(alpha = 0.7f),
+                        containerColor = Color.White.copy(alpha = 0.06f)
+                    )
+                ) {
+                    Icon(Icons.Filled.ContentCopy, null, Modifier.size(14.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "Copy",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize   = 13.sp
+                    )
+                }
+
+                // Share button — premium gradient
+                KawaiiPrimaryButton(
+                    text     = "Share",
+                    emoji    = "💌",
+                    modifier = Modifier.weight(1f),
+                    onClick  = {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "Join me on Doodlu! 💕 Enter code: $myCode"
+                            )
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Share with your person"))
+                    }
+                )
+            }
         }
     }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Join Card
+// Join Card — Premium Glassmorphism
 // ════════════════════════════════════════════════════════════════════════════
 @Composable
 private fun JoinCard(
@@ -535,92 +592,88 @@ private fun JoinCard(
     onJoin: () -> Unit,
     onUseMine: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 8.dp,
-                shape     = RoundedCornerShape(28.dp),
-                ambientColor = KawaiiPurple.copy(alpha = 0.08f)
-            )
-            .clip(RoundedCornerShape(28.dp))
-            .background(Color.White.copy(alpha = 0.88f))
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 28.dp
     ) {
-        Text(
-            text = "Join someone's room",
-            fontFamily = NunitoFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize   = 18.sp,
-            color      = KawaiiTextPri
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = "Enter their 6-character code below",
-            fontFamily = NunitoFamily,
-            fontSize   = 13.sp,
-            color      = KawaiiTextSec
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // 6 input slots
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment     = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            repeat(6) { idx ->
-                JoinCodeSlot(
-                    char            = joinChars[idx],
-                    isFocused       = focusedIdx == idx,
-                    focusRequester  = focusRequesters[idx],
-                    onFocusChanged  = { focused -> onFocusChanged(idx, focused) },
-                    onChar          = { c -> onChar(idx, c) },
-                    onBackspace     = { onBackspace(idx) }
+            Text(
+                text = "Join someone's room",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = Color.White.copy(alpha = 0.9f)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Enter their 6-character code below",
+                fontFamily = NunitoFamily,
+                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.45f)
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 6 input slots
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment     = Alignment.CenterVertically
+            ) {
+                repeat(6) { idx ->
+                    JoinCodeSlot(
+                        char            = joinChars[idx],
+                        isFocused       = focusedIdx == idx,
+                        focusRequester  = focusRequesters[idx],
+                        onFocusChanged  = { focused -> onFocusChanged(idx, focused) },
+                        onChar          = { c -> onChar(idx, c) },
+                        onBackspace     = { onBackspace(idx) }
+                    )
+                }
+            }
+
+            if (errorMsg.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    errorMsg,
+                    color      = KawaiiRed,
+                    fontFamily = NunitoFamily,
+                    fontSize   = 12.sp
                 )
             }
-        }
 
-        if (errorMsg.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                errorMsg,
-                color      = KawaiiRed,
-                fontFamily = NunitoFamily,
-                fontSize   = 12.sp
+            Spacer(modifier = Modifier.height(22.dp))
+
+            KawaiiSecondaryButton(
+                text     = if (isJoining) "Connecting…" else "Join Room",
+                emoji    = if (isJoining) "" else "🎉",
+                enabled  = canJoin,
+                modifier = Modifier.fillMaxWidth(),
+                onClick  = onJoin
             )
-        }
 
-        Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-        KawaiiSecondaryButton(
-            text     = if (isJoining) "Connecting…" else "Join Room",
-            emoji    = if (isJoining) "" else "🎉",
-            enabled  = canJoin,
-            modifier = Modifier.fillMaxWidth(),
-            onClick  = onJoin
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        TextButton(
-            onClick  = onUseMine,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        ) {
-            Text(
-                "Use my own code instead →",
-                fontFamily = NunitoFamily,
-                fontWeight = FontWeight.SemiBold,
-                fontSize   = 13.sp,
-                color      = KawaiiPink
-            )
+            TextButton(
+                onClick  = onUseMine,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Text(
+                    "Use my own code instead →",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize   = 13.sp,
+                    color      = ShimmerPink
+                )
+            }
         }
     }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Individual join slot — unchanged logic
+// Join code slot — premium glass style with glow focus ring
 // ════════════════════════════════════════════════════════════════════════════
 @Composable
 fun JoinCodeSlot(
@@ -636,16 +689,26 @@ fun JoinCodeSlot(
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label        = "char_scale"
     )
-    val bgColor     = if (isFocused) KawaiiInputFocus else KawaiiInputBg
-    val borderColor = if (isFocused) KawaiiPink else KawaiiCodeBorder
+
+    val focusGlow by animateFloatAsState(
+        targetValue = if (isFocused) 1f else 0f,
+        animationSpec = tween(300),
+        label = "focus_glow"
+    )
+
+    val bgColor = when {
+        isFocused -> Color.White.copy(alpha = 0.12f)
+        else -> Color.White.copy(alpha = 0.06f)
+    }
+    val borderColor = if (isFocused) KawaiiPink.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.15f)
 
     Box(
         modifier = Modifier
             .size(width = 44.dp, height = 54.dp)
             .shadow(
-                elevation  = if (isFocused) 4.dp else 0.dp,
-                shape      = RoundedCornerShape(14.dp),
-                spotColor  = KawaiiPink.copy(alpha = 0.2f)
+                elevation = if (isFocused) 8.dp else 0.dp,
+                shape = RoundedCornerShape(14.dp),
+                spotColor = KawaiiPink.copy(alpha = 0.3f * focusGlow)
             )
             .clip(RoundedCornerShape(14.dp))
             .background(bgColor)
@@ -693,15 +756,23 @@ fun JoinCodeSlot(
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize   = 22.sp,
-                color      = KawaiiTextPri,
+                color      = Color.White,
                 modifier   = Modifier.scale(charScale)
             )
         } else if (isFocused) {
+            // Animated cursor
+            val cursorAlpha by rememberInfiniteTransition(label = "cursor").animateFloat(
+                initialValue = 0.3f, targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    tween(500), RepeatMode.Reverse
+                ), label = "ca"
+            )
             Box(
                 modifier = Modifier
                     .width(2.dp)
                     .height(22.dp)
-                    .background(KawaiiPink)
+                    .clip(RoundedCornerShape(1.dp))
+                    .background(KawaiiPink.copy(alpha = cursorAlpha))
             )
         }
     }

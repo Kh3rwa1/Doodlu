@@ -13,7 +13,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -25,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doodlu.app.ui.theme.*
 import kotlinx.coroutines.launch
+import kotlin.math.sin
 
 // ── Gradient definitions ───────────────────────────────────────────────────
 val kawaiiBgGradient = Brush.verticalGradient(
@@ -43,7 +47,19 @@ val kawaiiPurpleGradient = Brush.linearGradient(
     end = Offset(Float.POSITIVE_INFINITY, 0f)
 )
 
-// ── Doodlu Logo ────────────────────────────────────────────────────────────
+// Premium aurora gradient for backgrounds
+val premiumAuroraGradient = Brush.verticalGradient(
+    colors = listOf(
+        Color(0xFF0D0221),
+        Color(0xFF150734),
+        Color(0xFF1A0A3E),
+        Color(0xFF21094E),
+        Color(0xFF1A0A3E),
+        Color(0xFF150734)
+    )
+)
+
+// ── Doodlu Logo — Premium Gradient Text ───────────────────────────────────
 @Composable
 fun DoodluLogo(
     modifier: Modifier = Modifier,
@@ -68,6 +84,17 @@ fun DoodluLogo(
         label = "heartScale"
     )
 
+    // Shimmer sweep across the logo
+    val shimmerOffset by infiniteTransition.animateFloat(
+        initialValue = -1f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2400, easing = EaseInOut),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer"
+    )
+
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -76,12 +103,24 @@ fun DoodluLogo(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            // Gradient text with shimmer
             Text(
                 text = "Doodlu",
                 fontFamily = NunitoFamily,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = fontSize.sp,
-                color = KawaiiTextPri
+                style = androidx.compose.ui.text.TextStyle(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            GradTextStart,
+                            ShimmerGold.copy(alpha = 0.8f),
+                            GradTextEnd,
+                            GradTextStart
+                        ),
+                        start = Offset(shimmerOffset * 300f, 0f),
+                        end = Offset(shimmerOffset * 300f + 400f, 0f)
+                    )
+                )
             )
             Text(
                 text = "❤️",
@@ -102,7 +141,7 @@ fun DoodluLogo(
     }
 }
 
-// ── Room Code Bubble (single character) ────────────────────────────────────
+// ── Room Code Bubble (single character) — Premium ─────────────────────────
 @Composable
 fun CodeBubble(
     char: Char,
@@ -119,6 +158,14 @@ fun CodeBubble(
             stiffness = Spring.StiffnessMedium
         ),
         label = "bubble_scale"
+    )
+    val rotation by animateFloatAsState(
+        targetValue = if (visible) 0f else -15f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "bubble_rot"
     )
 
     LaunchedEffect(Unit) {
@@ -137,11 +184,12 @@ fun CodeBubble(
         modifier = modifier
             .size(width = 44.dp, height = 54.dp)
             .scale(scale)
+            .rotate(rotation)
             .shadow(
-                elevation = if (isEmpty) 0.dp else 4.dp,
+                elevation = if (isEmpty) 0.dp else 8.dp,
                 shape = RoundedCornerShape(14.dp),
-                ambientColor = KawaiiPurple.copy(alpha = 0.15f),
-                spotColor = KawaiiPurple.copy(alpha = 0.1f)
+                ambientColor = KawaiiPurple.copy(alpha = 0.2f),
+                spotColor = KawaiiPink.copy(alpha = 0.15f)
             )
             .clip(RoundedCornerShape(14.dp))
             .background(bgColor)
@@ -187,7 +235,58 @@ fun KawaiiCard(
     )
 }
 
-// ── Pink Gradient Button ───────────────────────────────────────────────────
+// ── Glassmorphism Card ────────────────────────────────────────────────────
+@Composable
+fun GlassCard(
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp = 28.dp,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "glass_glow")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.15f,
+        targetValue = 0.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = EaseInOut),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glass_glow_alpha"
+    )
+
+    Column(
+        modifier = modifier
+            .shadow(
+                elevation = 16.dp,
+                shape = RoundedCornerShape(cornerRadius),
+                ambientColor = KawaiiPink.copy(alpha = 0.12f),
+                spotColor = KawaiiPurple.copy(alpha = 0.10f)
+            )
+            .clip(RoundedCornerShape(cornerRadius))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.15f),
+                        Color.White.copy(alpha = 0.08f),
+                        Color.White.copy(alpha = 0.05f)
+                    )
+                )
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = glowAlpha),
+                        Color.White.copy(alpha = 0.08f)
+                    )
+                ),
+                shape = RoundedCornerShape(cornerRadius)
+            )
+            .padding(24.dp),
+        content = content
+    )
+}
+
+// ── Pink Gradient Button — Premium ────────────────────────────────────────
 @Composable
 fun KawaiiPrimaryButton(
     text: String,
@@ -199,18 +298,31 @@ fun KawaiiPrimaryButton(
     val scaleAnim = remember { Animatable(1f) }
     val scope = rememberCoroutineScope()
 
+    val infiniteTransition = rememberInfiniteTransition(label = "btn_shimmer")
+    val shimmerX by infiniteTransition.animateFloat(
+        initialValue = -0.5f, targetValue = 1.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ), label = "sx"
+    )
+
     Box(
         modifier = modifier
             .scale(scaleAnim.value)
             .shadow(
-                elevation = if (enabled) 8.dp else 0.dp,
+                elevation = if (enabled) 12.dp else 0.dp,
                 shape = RoundedCornerShape(50.dp),
-                ambientColor = KawaiiPink.copy(alpha = 0.2f),
-                spotColor = KawaiiPink.copy(alpha = 0.25f)
+                ambientColor = KawaiiPink.copy(alpha = 0.25f),
+                spotColor = KawaiiPink.copy(alpha = 0.30f)
             )
             .clip(RoundedCornerShape(50.dp))
             .background(
-                if (enabled) kawaiiPinkGradient
+                if (enabled) Brush.linearGradient(
+                    colors = listOf(KawaiiPink, ShimmerPink, KawaiiCoral, KawaiiPink),
+                    start = Offset(shimmerX * 600f, 0f),
+                    end = Offset(shimmerX * 600f + 500f, 0f)
+                )
                 else Brush.linearGradient(
                     listOf(Color(0xFFCCCCCC), Color(0xFFBBBBBB)),
                     Offset(0f, 0f), Offset(Float.POSITIVE_INFINITY, 0f)
@@ -222,7 +334,7 @@ fun KawaiiPrimaryButton(
                     indication = null
                 ) {
                     scope.launch {
-                        scaleAnim.animateTo(0.95f, spring(stiffness = Spring.StiffnessHigh))
+                        scaleAnim.animateTo(0.93f, spring(stiffness = Spring.StiffnessHigh))
                         scaleAnim.animateTo(
                             1f, spring(
                                 dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -239,14 +351,15 @@ fun KawaiiPrimaryButton(
         Text(
             text = if (emoji.isNotEmpty()) "$text $emoji" else text,
             fontFamily = NunitoFamily,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
-            color = Color.White
+            color = Color.White,
+            letterSpacing = 0.5.sp
         )
     }
 }
 
-// ── Purple Gradient Button ─────────────────────────────────────────────────
+// ── Purple Gradient Button — Premium ──────────────────────────────────────
 @Composable
 fun KawaiiSecondaryButton(
     text: String,
@@ -258,18 +371,31 @@ fun KawaiiSecondaryButton(
     val scaleAnim = remember { Animatable(1f) }
     val scope = rememberCoroutineScope()
 
+    val infiniteTransition = rememberInfiniteTransition(label = "s_btn_shimmer")
+    val shimmerX by infiniteTransition.animateFloat(
+        initialValue = -0.5f, targetValue = 1.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ), label = "ssx"
+    )
+
     Box(
         modifier = modifier
             .scale(scaleAnim.value)
             .shadow(
-                elevation = if (enabled) 6.dp else 0.dp,
+                elevation = if (enabled) 10.dp else 0.dp,
                 shape = RoundedCornerShape(50.dp),
-                ambientColor = KawaiiPurple.copy(alpha = 0.2f),
-                spotColor = KawaiiPurple.copy(alpha = 0.2f)
+                ambientColor = KawaiiPurple.copy(alpha = 0.25f),
+                spotColor = KawaiiPurple.copy(alpha = 0.25f)
             )
             .clip(RoundedCornerShape(50.dp))
             .background(
-                if (enabled) kawaiiPurpleGradient
+                if (enabled) Brush.linearGradient(
+                    colors = listOf(KawaiiPurple, ShimmerLavender, Color(0xFFA07AFF), KawaiiPurple),
+                    start = Offset(shimmerX * 600f, 0f),
+                    end = Offset(shimmerX * 600f + 500f, 0f)
+                )
                 else Brush.linearGradient(
                     listOf(Color(0xFFCCCCCC), Color(0xFFBBBBBB)),
                     Offset(0f, 0f), Offset(Float.POSITIVE_INFINITY, 0f)
@@ -281,7 +407,7 @@ fun KawaiiSecondaryButton(
                     indication = null
                 ) {
                     scope.launch {
-                        scaleAnim.animateTo(0.95f, spring(stiffness = Spring.StiffnessHigh))
+                        scaleAnim.animateTo(0.93f, spring(stiffness = Spring.StiffnessHigh))
                         scaleAnim.animateTo(
                             1f, spring(
                                 dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -298,24 +424,31 @@ fun KawaiiSecondaryButton(
         Text(
             text = if (emoji.isNotEmpty()) "$text $emoji" else text,
             fontFamily = NunitoFamily,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
-            color = Color.White
+            color = Color.White,
+            letterSpacing = 0.5.sp
         )
     }
 }
 
-// ── Floating Particles (hearts & sparkles) ────────────────────────────────
+// ── Floating Particles — Premium with depth variation ─────────────────────
 @Composable
 fun FloatingParticles(modifier: Modifier = Modifier) {
-    val particles = listOf("❤️", "✨", "💕", "⭐", "🌸", "💫", "❤️", "✨", "💕", "⭐")
+    val particles = listOf(
+        "❤️" to 18, "✨" to 12, "💕" to 16, "⭐" to 10, "🌸" to 14,
+        "💫" to 11, "❤️" to 15, "✨" to 13, "💕" to 17, "⭐" to 9,
+        "🌟" to 11, "💖" to 13
+    )
     Box(modifier = modifier) {
-        particles.forEachIndexed { idx, emoji ->
+        particles.forEachIndexed { idx, (emoji, size) ->
             FloatingParticle(
                 emoji = emoji,
-                startFraction = idx * 0.1f + 0.05f,
-                duration = 3200 + idx * 380,
-                delay = idx * 550
+                startFraction = idx * 0.082f + 0.02f,
+                duration = 4000 + idx * 420,
+                delay = idx * 480,
+                particleSize = size,
+                blurAmount = if (idx % 3 == 0) 1.dp else 0.dp
             )
         }
     }
@@ -327,6 +460,8 @@ private fun FloatingParticle(
     startFraction: Float,
     duration: Int,
     delay: Int,
+    particleSize: Int = 14,
+    blurAmount: Dp = 0.dp
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "p_$delay")
     val progress by infiniteTransition.animateFloat(
@@ -338,21 +473,101 @@ private fun FloatingParticle(
         ),
         label = "prog_$delay"
     )
-    // alpha: fade in at start, fade out near top
+    // Alpha: smooth fade in/out
     val alpha = when {
-        progress < 0.1f -> progress / 0.1f * 0.08f
-        progress > 0.85f -> (1f - progress) / 0.15f * 0.08f
-        else -> 0.08f
+        progress < 0.12f -> progress / 0.12f * 0.12f
+        progress > 0.82f -> (1f - progress) / 0.18f * 0.12f
+        else -> 0.12f
     }
+    // Sine-wave horizontal drift for organic movement
+    val driftX = sin(progress * 6.28f * 2f) * 12f
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val xOffset = maxWidth * startFraction
         val yOffset = maxHeight * (1f - progress)
         Text(
             text = emoji,
-            fontSize = 14.sp,
-            modifier = Modifier.offset(x = xOffset, y = yOffset),
-            color = Color.Black.copy(alpha = alpha)
+            fontSize = particleSize.sp,
+            modifier = Modifier
+                .offset(x = xOffset + driftX.dp, y = yOffset)
+                .alpha(alpha)
+                .then(if (blurAmount > 0.dp) Modifier.blur(blurAmount) else Modifier)
+        )
+    }
+}
+
+// ── Aurora Orbs — soft animated background blobs ──────────────────────────
+@Composable
+fun AuroraOrbs(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "aurora")
+
+    val drift1 by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            tween(8000, easing = EaseInOut), RepeatMode.Reverse
+        ), label = "d1"
+    )
+    val drift2 by infiniteTransition.animateFloat(
+        initialValue = 1f, targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            tween(10000, easing = EaseInOut), RepeatMode.Reverse
+        ), label = "d2"
+    )
+    val drift3 by infiniteTransition.animateFloat(
+        initialValue = 0.5f, targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            tween(7000, easing = EaseInOut), RepeatMode.Reverse
+        ), label = "d3"
+    )
+
+    BoxWithConstraints(modifier = modifier) {
+        // Large pink orb — top-right
+        Box(
+            modifier = Modifier
+                .size(280.dp)
+                .offset(
+                    x = maxWidth * 0.5f + (drift1 * 40f).dp,
+                    y = maxHeight * 0.05f + (drift2 * 30f).dp
+                )
+                .blur(80.dp)
+                .clip(CircleShape)
+                .background(AuroraDeepPink.copy(alpha = 0.25f))
+        )
+        // Violet orb — center-left
+        Box(
+            modifier = Modifier
+                .size(220.dp)
+                .offset(
+                    x = maxWidth * -0.1f + (drift2 * 50f).dp,
+                    y = maxHeight * 0.3f + (drift3 * 40f).dp
+                )
+                .blur(70.dp)
+                .clip(CircleShape)
+                .background(AuroraViolet.copy(alpha = 0.22f))
+        )
+        // Indigo orb — bottom-center
+        Box(
+            modifier = Modifier
+                .size(250.dp)
+                .offset(
+                    x = maxWidth * 0.2f + (drift3 * 35f).dp,
+                    y = maxHeight * 0.6f + (drift1 * 25f).dp
+                )
+                .blur(75.dp)
+                .clip(CircleShape)
+                .background(AuroraIndigo.copy(alpha = 0.18f))
+        )
+        // Rose orb — top-left subtle
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .offset(
+                    x = maxWidth * 0.1f + (drift1 * 20f).dp,
+                    y = maxHeight * 0.1f + (drift2 * 35f).dp
+                )
+                .blur(60.dp)
+                .clip(CircleShape)
+                .background(AuroraRose.copy(alpha = 0.15f))
         )
     }
 }

@@ -58,6 +58,31 @@ val DrawingColorsCompose = listOf(
     DrawColorBlue, DrawColorPurple, DrawColorPink, DrawColorWhite
 )
 
+// ── Premium / Aurora Palette ──────────────────────────────────────────────
+// Deep aurora tints for animated background mesh
+val AuroraDeepPink     = Color(0xFFFF3D8B)
+val AuroraMagenta      = Color(0xFFE040FB)
+val AuroraViolet       = Color(0xFF7C4DFF)
+val AuroraIndigo       = Color(0xFF536DFE)
+val AuroraTeal         = Color(0xFF18FFFF)
+val AuroraRose         = Color(0xFFFF6090)
+
+// Glassmorphism
+val GlassFill          = Color(0x33FFFFFF)   // 20% white
+val GlassBorder        = Color(0x40FFFFFF)   // 25% white
+val GlassHighlight     = Color(0x66FFFFFF)   // 40% white — top-edge shimmer
+
+// Glow / Shimmer accents
+val ShimmerPink        = Color(0xFFFF80AB)
+val ShimmerGold        = Color(0xFFFFD740)
+val ShimmerLavender    = Color(0xFFB388FF)
+val GlowPink           = Color(0x40FF6B9D)   // soft glow ring
+val GlowPurple         = Color(0x30C3A6FF)
+
+// Premium text gradient endpoints
+val GradTextStart      = Color(0xFFFF6B9D)
+val GradTextEnd        = Color(0xFFC3A6FF)
+
 // Legacy aliases (keep for wallpaper service compatibility)
 val DoodluBackground    = CanvasBg
 val DoodluSurface       = CanvasSurface
