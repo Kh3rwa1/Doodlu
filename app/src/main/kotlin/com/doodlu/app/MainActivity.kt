@@ -7,9 +7,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.*
+import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
 import com.doodlu.app.data.PreferencesManager
+import com.doodlu.app.sync.ConnectionState
 import com.doodlu.app.sync.SyncManager
 import com.doodlu.app.ui.navigation.DoodluNavGraph
 import com.doodlu.app.ui.navigation.Screen
@@ -19,17 +20,25 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var prefsManager: PreferencesManager
+    // The real post-splash destination (drawing or pairing)
+    private lateinit var postSplashDestination: String
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
 
-        // Check if user already has a room
-        val prefsManager = PreferencesManager(this)
-        val startDestination = runBlocking {
+        // Full edge-to-edge — let Compose handle insets
+        enableEdgeToEdge()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        prefsManager = PreferencesManager(this)
+
+        // Determine where to go after splash
+        postSplashDestination = runBlocking {
             val roomId = prefsManager.roomId.first()
             val userId = prefsManager.userId.first()
             if (!roomId.isNullOrEmpty() && !userId.isNullOrEmpty()) {
-                // Reconnect existing room
                 SyncManager.connect(roomId, userId)
                 Screen.Drawing.route
             } else {
@@ -41,12 +50,31 @@ class MainActivity : ComponentActivity() {
             DoodluTheme {
                 val navController = rememberNavController()
                 DoodluNavGraph(
-                    navController = navController,
-                    startDestination = startDestination,
-                    onSetWallpaper = { launchWallpaperPicker() }
+                    navController      = navController,
+                    // Always show splash first; splash navigates to postSplashDestination
+                    startDestination   = Screen.Splash.route,
+                    onSetWallpaper     = { launchWallpaperPicker() }
                 )
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        SyncManager.registerClient()
+
+        val roomId = runBlocking { prefsManager.roomId.first() }
+        val userId = runBlocking { prefsManager.userId.first() }
+        if (!roomId.isNullOrEmpty() && !userId.isNullOrEmpty()) {
+            if (SyncManager.connectionState.value == ConnectionState.DISCONNECTED) {
+                SyncManager.connect(roomId, userId)
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        SyncManager.unregisterClient()
     }
 
     private fun launchWallpaperPicker() {
@@ -59,23 +87,7 @@ class MainActivity : ComponentActivity() {
             }
             startActivity(intent)
         } catch (e: Exception) {
-            // Fallback to generic wallpaper picker
             startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER))
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Reconnect if disconnected
-        val prefsManager = PreferencesManager(this)
-        runBlocking {
-            val roomId = prefsManager.roomId.first()
-            val userId = prefsManager.userId.first()
-            if (!roomId.isNullOrEmpty() && !userId.isNullOrEmpty()) {
-                if (SyncManager.connectionState.value != com.doodlu.app.sync.ConnectionState.CONNECTED) {
-                    SyncManager.connect(roomId, userId)
-                }
-            }
         }
     }
 }

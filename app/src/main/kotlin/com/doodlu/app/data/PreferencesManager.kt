@@ -15,24 +15,29 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "do
 class PreferencesManager(private val context: Context) {
 
     companion object {
-        val ROOM_ID = stringPreferencesKey("room_id")
-        val USER_ID = stringPreferencesKey("user_id")
-        val SYMBOL = stringPreferencesKey("symbol")
-        val AUTO_WALLPAPER = booleanPreferencesKey("auto_wallpaper")
-        val WALLPAPER_TARGET = stringPreferencesKey("wallpaper_target") // "lock" or "both"
+        val ROOM_ID               = stringPreferencesKey("room_id")
+        val USER_ID               = stringPreferencesKey("user_id")
+        val SYMBOL                = stringPreferencesKey("symbol")
+        val AUTO_WALLPAPER        = booleanPreferencesKey("auto_wallpaper")
+        val WALLPAPER_TARGET      = stringPreferencesKey("wallpaper_target") // "lock" or "both"
+        /** Set to true after the WallpaperSetupScreen has been shown once */
+        val WALLPAPER_SETUP_SHOWN = booleanPreferencesKey("wallpaper_setup_shown")
     }
 
-    val roomId: Flow<String?> = context.dataStore.data.map { it[ROOM_ID] }
-    val userId: Flow<String?> = context.dataStore.data.map { it[USER_ID] }
-    val symbol: Flow<String?> = context.dataStore.data.map { it[SYMBOL] }
-    val autoWallpaper: Flow<Boolean> = context.dataStore.data.map { it[AUTO_WALLPAPER] ?: false }
-    val wallpaperTarget: Flow<String> = context.dataStore.data.map { it[WALLPAPER_TARGET] ?: "lock" }
+    val roomId: Flow<String?>          = context.dataStore.data.map { it[ROOM_ID] }
+    val userId: Flow<String?>          = context.dataStore.data.map { it[USER_ID] }
+    val symbol: Flow<String?>          = context.dataStore.data.map { it[SYMBOL] }
+    val autoWallpaper: Flow<Boolean>   = context.dataStore.data.map { it[AUTO_WALLPAPER] ?: false }
+    val wallpaperTarget: Flow<String>  = context.dataStore.data.map { it[WALLPAPER_TARGET] ?: "lock" }
+    /** True if the one-time wallpaper setup screen has already been shown */
+    val wallpaperSetupShown: Flow<Boolean> =
+        context.dataStore.data.map { it[WALLPAPER_SETUP_SHOWN] ?: false }
 
     suspend fun saveRoom(roomId: String, userId: String, symbol: String) {
         context.dataStore.edit { prefs ->
             prefs[ROOM_ID] = roomId
             prefs[USER_ID] = userId
-            prefs[SYMBOL] = symbol
+            prefs[SYMBOL]  = symbol
         }
     }
 
@@ -41,6 +46,8 @@ class PreferencesManager(private val context: Context) {
             prefs.remove(ROOM_ID)
             prefs.remove(USER_ID)
             prefs.remove(SYMBOL)
+            // Also clear setup-shown so next pairing gets the tutorial again
+            prefs.remove(WALLPAPER_SETUP_SHOWN)
         }
     }
 
@@ -50,5 +57,9 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setWallpaperTarget(target: String) {
         context.dataStore.edit { it[WALLPAPER_TARGET] = target }
+    }
+
+    suspend fun setWallpaperSetupShown(shown: Boolean = true) {
+        context.dataStore.edit { it[WALLPAPER_SETUP_SHOWN] = shown }
     }
 }

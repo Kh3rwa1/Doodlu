@@ -1,5 +1,7 @@
 package com.doodlu.app.wallpaper
 
+import android.app.Service
+import android.content.Intent
 import android.graphics.*
 import android.os.Handler
 import android.os.HandlerThread
@@ -19,31 +21,48 @@ class DoodluWallpaperService : WallpaperService() {
 
     override fun onCreateEngine(): Engine = DoodluEngine()
 
-    inner class DoodluEngine : Engine() {
-        private val TAG = "DoodluWallpaperEngine"
+    /**
+     * Return START_STICKY so Android restarts the service if it is killed.
+     * WallpaperService handles onStartCommand internally; we just override it
+     * to set the restart flag.
+     */
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+        return Service.START_STICKY
+    }
 
-        // Handler thread for non-main rendering
+    // ─────────────────────────────────────────────────────────────────────────
+
+    inner class DoodluEngine : Engine() {
+        private val TAG = "DoodluEngine"
+
+        // Dedicated render thread — keep UI thread free
         private val renderThread = HandlerThread("DoodluRender").also { it.start() }
         private val renderHandler = Handler(renderThread.looper)
 
+        // Coroutine scope for DataStore reads (IO dispatcher)
         private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-        // Canvas state
+        // ── Canvas state (only touched from renderHandler) ────────────────────
         private val strokes = mutableListOf<Stroke>()
         private var partnerX = -1f
         private var partnerY = -1f
         private var currentMode = "whiteboard"
         private var tttState = TicTacToeState()
-
-        // Touch state for drawing
         private val currentPoints = mutableListOf<Pair<Float, Float>>()
         private var lastSentIndex = 0
 
-        // Dirty flag — only redraw when needed
-        @Volatile
-        private var needsRedraw = false
+        // Only redraw when we have new data
+        @Volatile private var needsRedraw = false
 
-        // Paints
+        // Track whether wallpaper is visible — prevents wasted renders
+        @Volatile private var isVisible = false
+
+        // Room credentials loaded from DataStore
+        @Volatile private var savedRoomId: String? = null
+        @Volatile private var savedUserId: String? = null
+
+        // ── Pre-allocated Paints ──────────────────────────────────────────────
         private val bgPaint = Paint().apply {
             color = Color.parseColor("#1A1A2E")
             style = Paint.Style.FILL
@@ -79,90 +98,139 @@ class DoodluWallpaperService : WallpaperService() {
             textAlign = Paint.Align.CENTER
             typeface = Typeface.DEFAULT_BOLD
         }
+        private val glowPaint = Paint().apply {
+            color = Color.parseColor("#E94560")
+            alpha = 80
+            isAntiAlias = true
+            maskFilter = BlurMaskFilter(20f, BlurMaskFilter.Blur.NORMAL)
+        }
+        private val whiteDotPaint = Paint().apply {
+            color = Color.WHITE
+            isAntiAlias = true
+        }
 
-        // Listeners
+        // ── SyncManager listeners ─────────────────────────────────────────────
         private val strokeListener = object : SyncManager.StrokeListener {
             override fun onStroke(stroke: Stroke) {
-                strokes.add(stroke)
-                scheduleRedraw()
+                renderHandler.post {
+                    strokes.add(stroke)
+                    if (isVisible) scheduleRedraw()
+                }
             }
         }
         private val cursorListener = object : SyncManager.CursorListener {
             override fun onCursor(userId: String, x: Float, y: Float) {
                 if (userId != SyncManager.myUserId.value) {
-                    partnerX = x
-                    partnerY = y
-                    scheduleRedraw()
+                    renderHandler.post {
+                        partnerX = x
+                        partnerY = y
+                        if (isVisible) scheduleRedraw()
+                    }
                 }
             }
         }
         private val modeListener = object : SyncManager.ModeListener {
             override fun onModeSwitch(mode: String) {
-                currentMode = mode
-                scheduleRedraw()
+                renderHandler.post {
+                    currentMode = mode
+                    if (isVisible) scheduleRedraw()
+                }
             }
         }
         private val gameStateListener = object : SyncManager.GameStateListener {
             override fun onGameState(state: TicTacToeState) {
-                tttState = state
-                scheduleRedraw()
+                renderHandler.post {
+                    tttState = state
+                    if (isVisible) scheduleRedraw()
+                }
             }
         }
         private val canvasListener = object : SyncManager.CanvasListener {
             override fun onClearCanvas() {
-                strokes.clear()
-                scheduleRedraw()
+                renderHandler.post {
+                    strokes.clear()
+                    if (isVisible) scheduleRedraw()
+                }
             }
         }
+
+        // ── Engine lifecycle ──────────────────────────────────────────────────
 
         override fun onCreate(surfaceHolder: SurfaceHolder) {
             super.onCreate(surfaceHolder)
             setTouchEventsEnabled(true)
             registerListeners()
+            SyncManager.registerClient()
 
-            // Load room info and connect if not already connected
+            // Load credentials, then connect/sync state
             scope.launch {
                 val prefs = PreferencesManager(this@DoodluWallpaperService)
                 val roomId = prefs.roomId.first()
                 val userId = prefs.userId.first()
+
+                // Cache for later visibility changes
+                savedRoomId = roomId
+                savedUserId = userId
+
                 if (!roomId.isNullOrEmpty() && !userId.isNullOrEmpty()) {
-                    if (SyncManager.connectionState.value != ConnectionState.CONNECTED) {
-                        SyncManager.connect(roomId, userId)
+                    when (SyncManager.connectionState.value) {
+                        ConnectionState.CONNECTED -> {
+                            // Already connected — just sync local state
+                            syncStateFromManager()
+                        }
+                        ConnectionState.CONNECTING, ConnectionState.RECONNECTING -> {
+                            // In-flight — just sync state when it lands
+                            syncStateFromManager()
+                        }
+                        ConnectionState.DISCONNECTED -> {
+                            SyncManager.connect(roomId, userId)
+                        }
                     }
+                } else {
+                    Log.w(TAG, "No room credentials in DataStore — wallpaper will show blank")
                 }
-                // Sync current mode
-                currentMode = SyncManager.currentMode.value
-                tttState = SyncManager.gameState.value.tictactoe
             }
         }
 
         override fun onDestroy() {
             super.onDestroy()
             unregisterListeners()
+            SyncManager.unregisterClient()
+            // Don't disconnect the socket — the Activity might still be using it.
+            // If no one is left, the OS killing the service is fine too.
             scope.cancel()
             renderThread.quitSafely()
         }
 
         override fun onVisibilityChanged(visible: Boolean) {
+            isVisible = visible
             if (visible) {
-                // Reconnect on becoming visible
+                Log.d(TAG, "Wallpaper VISIBLE — ensuring WebSocket is alive")
                 scope.launch {
-                    val prefs = PreferencesManager(this@DoodluWallpaperService)
-                    val roomId = prefs.roomId.first()
-                    val userId = prefs.userId.first()
-                    if (!roomId.isNullOrEmpty() && !userId.isNullOrEmpty()) {
-                        SyncManager.resumeConnection()
+                    val roomId = savedRoomId
+                    val userId = savedUserId
+
+                    // Re-read from DataStore if we don't have them yet
+                    val finalRoomId = if (roomId.isNullOrEmpty()) {
+                        PreferencesManager(this@DoodluWallpaperService).roomId.first()
+                    } else roomId
+
+                    val finalUserId = if (userId.isNullOrEmpty()) {
+                        PreferencesManager(this@DoodluWallpaperService).userId.first()
+                    } else userId
+
+                    if (!finalRoomId.isNullOrEmpty() && !finalUserId.isNullOrEmpty()) {
+                        savedRoomId = finalRoomId
+                        savedUserId = finalUserId
+                        SyncManager.resumeForWallpaper(finalRoomId, finalUserId)
                     }
                 }
-                scheduleRedraw()
+                renderHandler.post { scheduleRedraw() }
             } else {
-                SyncManager.pauseConnection()
+                Log.d(TAG, "Wallpaper HIDDEN — requesting connection pause")
+                // Uses smart pause: only actually pauses if Activity isn't active
+                SyncManager.pauseForWallpaper()
             }
-        }
-
-        override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-            super.onSurfaceChanged(holder, format, width, height)
-            scheduleRedraw()
         }
 
         override fun onSurfaceCreated(holder: SurfaceHolder) {
@@ -170,10 +238,23 @@ class DoodluWallpaperService : WallpaperService() {
             scheduleRedraw()
         }
 
+        override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+            super.onSurfaceChanged(holder, format, width, height)
+            scheduleRedraw()
+        }
+
+        override fun onSurfaceDestroyed(holder: SurfaceHolder) {
+            // Cancel pending render to avoid locked-canvas crash
+            renderHandler.removeCallbacksAndMessages(null)
+            super.onSurfaceDestroyed(holder)
+        }
+
+        // ── Touch input ───────────────────────────────────────────────────────
+
         override fun onTouchEvent(event: MotionEvent) {
             when (currentMode) {
                 "whiteboard" -> handleDrawTouch(event)
-                "tictactoe" -> handleTttTouch(event)
+                "tictactoe"  -> handleTttTouch(event)
             }
         }
 
@@ -195,17 +276,11 @@ class DoodluWallpaperService : WallpaperService() {
                         SyncManager.sendStroke(batch, "#FFFFFF", 4f)
                         lastSentIndex = currentPoints.size
                     }
-                    // Draw current stroke locally
-                    val localStroke = Stroke(currentPoints.toList(), "#FFFFFF", 4f)
                     scheduleRedraw()
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (lastSentIndex < currentPoints.size) {
-                        val remaining = currentPoints.subList(lastSentIndex, currentPoints.size).toList()
-                        if (remaining.isNotEmpty()) {
-                            SyncManager.sendStroke(remaining, "#FFFFFF", 4f)
-                        }
-                    }
+                    val remaining = currentPoints.subList(lastSentIndex, currentPoints.size).toList()
+                    if (remaining.isNotEmpty()) SyncManager.sendStroke(remaining, "#FFFFFF", 4f)
                     strokes.add(Stroke(currentPoints.toList(), "#FFFFFF", 4f))
                     currentPoints.clear()
                     lastSentIndex = 0
@@ -219,28 +294,28 @@ class DoodluWallpaperService : WallpaperService() {
             if (tttState.winner != null || tttState.draw) return
             if (tttState.turn != SyncManager.mySymbol.value) return
 
-            val holder = surfaceHolder
-            val width = holder.surfaceFrame.width().toFloat()
-            val height = holder.surfaceFrame.height().toFloat()
-            val gridSize = minOf(width, height) * 0.8f
-            val startX = (width - gridSize) / 2
-            val startY = (height - gridSize) / 2
+            val frame = surfaceHolder.surfaceFrame
+            val w = frame.width().toFloat()
+            val h = frame.height().toFloat()
+            val gridSize = minOf(w, h) * 0.8f
+            val startX = (w - gridSize) / 2
+            val startY = (h - gridSize) / 2
             val cellSize = gridSize / 3f
 
             val col = ((event.x - startX) / cellSize).toInt()
             val row = ((event.y - startY) / cellSize).toInt()
-
             if (col in 0..2 && row in 0..2) {
                 val square = row * 3 + col
-                if (tttState.board[square] == null) {
-                    SyncManager.sendMove(square)
-                }
+                if (tttState.board[square] == null) SyncManager.sendMove(square)
             }
         }
 
+        // ── Rendering ─────────────────────────────────────────────────────────
+
+        /** Call from any thread — renders on renderHandler. */
         private fun scheduleRedraw() {
             needsRedraw = true
-            renderHandler.removeCallbacksAndMessages(null)
+            // Post without removing: keep existing frames in queue (up to 1 pending is fine)
             renderHandler.post { drawFrame() }
         }
 
@@ -249,19 +324,17 @@ class DoodluWallpaperService : WallpaperService() {
             val holder = surfaceHolder
             var canvas: Canvas? = null
             try {
-                canvas = holder.lockCanvas()
-                if (canvas != null) {
-                    when (currentMode) {
-                        "tictactoe" -> drawTicTacToe(canvas)
-                        else -> drawWhiteboard(canvas)
-                    }
-                    needsRedraw = false
+                canvas = holder.lockCanvas() ?: return
+                when (currentMode) {
+                    "tictactoe" -> drawTicTacToe(canvas)
+                    else        -> drawWhiteboard(canvas)
                 }
+                needsRedraw = false
             } catch (e: Exception) {
-                Log.e(TAG, "Draw error: ${e.message}")
+                Log.e(TAG, "drawFrame error: ${e.message}")
             } finally {
                 canvas?.let {
-                    try { holder.unlockCanvasAndPost(it) } catch (e: Exception) { }
+                    try { holder.unlockCanvasAndPost(it) } catch (_: Exception) {}
                 }
             }
         }
@@ -269,52 +342,34 @@ class DoodluWallpaperService : WallpaperService() {
         private fun drawWhiteboard(canvas: Canvas) {
             val w = canvas.width.toFloat()
             val h = canvas.height.toFloat()
-
-            // Background
             canvas.drawRect(0f, 0f, w, h, bgPaint)
 
-            // Draw all strokes
-            strokes.forEach { stroke ->
-                drawStroke(canvas, stroke)
-            }
+            strokes.forEach { drawStroke(canvas, it) }
 
-            // Draw current in-progress stroke
-            if (currentPoints.size > 1) {
-                drawStroke(canvas, Stroke(currentPoints.toList(), "#FFFFFF", 4f))
-            }
+            // In-progress stroke
+            if (currentPoints.size > 1) drawStroke(canvas, Stroke(currentPoints.toList(), "#FFFFFF", 4f))
 
-            // Draw partner cursor
+            // Partner cursor with glow
             if (partnerX >= 0 && partnerY >= 0) {
-                // Glow
-                val glowPaint = Paint().apply {
-                    color = Color.parseColor("#E94560")
-                    alpha = 80
-                    isAntiAlias = true
-                    maskFilter = BlurMaskFilter(20f, BlurMaskFilter.Blur.NORMAL)
-                }
-                canvas.drawCircle(partnerX, partnerY, 14f, glowPaint)
-                // Dot
-                cursorPaint.alpha = 255
+                canvas.drawCircle(partnerX, partnerY, 18f, glowPaint)
                 canvas.drawCircle(partnerX, partnerY, 8f, cursorPaint)
-                val whitePaint = Paint().apply { color = Color.WHITE; isAntiAlias = true }
-                canvas.drawCircle(partnerX, partnerY, 4f, whitePaint)
+                canvas.drawCircle(partnerX, partnerY, 4f, whiteDotPaint)
             }
         }
 
         private fun drawStroke(canvas: Canvas, stroke: Stroke) {
             if (stroke.points.size < 2) return
             val paint = Paint().apply {
-                try { color = Color.parseColor(stroke.color) } catch (e: Exception) { color = Color.WHITE }
+                try { color = Color.parseColor(stroke.color) } catch (_: Exception) { color = Color.WHITE }
                 strokeWidth = stroke.width
                 style = Paint.Style.STROKE
                 isAntiAlias = true
                 strokeCap = Paint.Cap.ROUND
                 strokeJoin = Paint.Join.ROUND
             }
-            val path = Path()
-            path.moveTo(stroke.points[0].first, stroke.points[0].second)
-            for (i in 1 until stroke.points.size) {
-                path.lineTo(stroke.points[i].first, stroke.points[i].second)
+            val path = Path().apply {
+                moveTo(stroke.points[0].first, stroke.points[0].second)
+                for (i in 1 until stroke.points.size) lineTo(stroke.points[i].first, stroke.points[i].second)
             }
             canvas.drawPath(path, paint)
         }
@@ -322,65 +377,68 @@ class DoodluWallpaperService : WallpaperService() {
         private fun drawTicTacToe(canvas: Canvas) {
             val w = canvas.width.toFloat()
             val h = canvas.height.toFloat()
-
-            // Background
             canvas.drawRect(0f, 0f, w, h, bgPaint)
 
             val gridSize = minOf(w, h) * 0.8f
-            val startX = (w - gridSize) / 2
-            val startY = (h - gridSize) / 2
+            val startX = (w - gridSize) / 2f
+            val startY = (h - gridSize) / 2f
             val cellSize = gridSize / 3f
 
-            // Draw grid lines
+            // Grid lines
             for (i in 1..2) {
                 canvas.drawLine(startX + cellSize * i, startY, startX + cellSize * i, startY + gridSize, gridPaint)
                 canvas.drawLine(startX, startY + cellSize * i, startX + gridSize, startY + cellSize * i, gridPaint)
             }
 
-            // Draw X and O
+            // X and O marks
             tttState.board.forEachIndexed { index, value ->
                 if (value == null) return@forEachIndexed
                 val col = (index % 3).toFloat()
                 val row = (index / 3).toFloat()
-                val cx = startX + col * cellSize + cellSize / 2
-                val cy = startY + row * cellSize + cellSize / 2
+                val cx  = startX + col * cellSize + cellSize / 2f
+                val cy  = startY + row * cellSize + cellSize / 2f
                 val pad = cellSize * 0.25f
-
                 when (value) {
                     "X" -> {
                         canvas.drawLine(cx - pad, cy - pad, cx + pad, cy + pad, xPaint)
                         canvas.drawLine(cx + pad, cy - pad, cx - pad, cy + pad, xPaint)
                     }
-                    "O" -> {
-                        canvas.drawCircle(cx, cy, pad, oPaint)
-                    }
+                    "O" -> canvas.drawCircle(cx, cy, pad, oPaint)
                 }
             }
 
             // Status text
             val statusText = when {
-                tttState.winner != null -> if (tttState.winner == SyncManager.mySymbol.value) "You win! 🎉" else "They win!"
+                tttState.winner != null ->
+                    if (tttState.winner == SyncManager.mySymbol.value) "You win!" else "They win!"
                 tttState.draw -> "Draw!"
                 tttState.turn == SyncManager.mySymbol.value -> "Your turn"
                 else -> "Their turn..."
             }
             textPaint.color = when {
                 tttState.winner == SyncManager.mySymbol.value -> Color.parseColor("#06D6A0")
-                tttState.winner != null -> Color.parseColor("#FF6B35")
-                tttState.draw -> Color.parseColor("#FFC947")
-                else -> Color.WHITE
+                tttState.winner != null                       -> Color.parseColor("#FF6B35")
+                tttState.draw                                 -> Color.parseColor("#FFC947")
+                else                                          -> Color.WHITE
             }
-            canvas.drawText(statusText, w / 2, startY - 30f, textPaint)
+            canvas.drawText(statusText, w / 2f, startY - 32f, textPaint)
 
-            // Doodlu label
+            // Brand label
             val labelPaint = Paint().apply {
                 color = Color.parseColor("#8892B0")
-                textSize = 24f
+                textSize = 22f
                 isAntiAlias = true
                 textAlign = Paint.Align.CENTER
                 typeface = Typeface.DEFAULT_BOLD
             }
-            canvas.drawText("Doodlu", w / 2, h - 40f, labelPaint)
+            canvas.drawText("Doodlu", w / 2f, h - 36f, labelPaint)
+        }
+
+        // ── Helpers ───────────────────────────────────────────────────────────
+
+        private fun syncStateFromManager() {
+            currentMode = SyncManager.currentMode.value
+            tttState = SyncManager.gameState.value.tictactoe
         }
 
         private fun registerListeners() {

@@ -1,20 +1,22 @@
 package com.doodlu.app.ui.screens
 
-import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.draw.scale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -25,8 +27,8 @@ import com.doodlu.app.sync.ConnectionState
 import com.doodlu.app.sync.SyncManager
 import com.doodlu.app.ui.components.*
 import com.doodlu.app.ui.theme.*
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
+import com.doodlu.app.util.buildWallpaperPickerIntent
+import com.doodlu.app.util.isDoodluActiveWallpaper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,106 +38,109 @@ fun DrawingScreen(
     onSetWallpaper: () -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val scope   = rememberCoroutineScope()
 
-    var strokes by remember { mutableStateOf(listOf<DrawPath>()) }
-    var strokeHistory by remember { mutableStateOf(listOf<DrawPath>()) }
-    var selectedColorHex by remember { mutableStateOf("#FFFFFF") }
-    var selectedColor by remember { mutableStateOf(Color.White) }
-    var strokeWidth by remember { mutableStateOf(6f) }
-    var isEraser by remember { mutableStateOf(false) }
-    var partnerCursor by remember { mutableStateOf<Offset?>(null) }
-    var showMenu by remember { mutableStateOf(false) }
-    var showClearDialog by remember { mutableStateOf(false) }
-    var partnerDrawingToast by remember { mutableStateOf(false) }
+    var strokes            by remember { mutableStateOf(listOf<DrawPath>()) }
+    var selectedColorHex   by remember { mutableStateOf("#FF8A65") }
+    var selectedColor      by remember { mutableStateOf(DrawColorCoral) }
+    var strokeWidth        by remember { mutableStateOf(5f) }
+    var isEraser           by remember { mutableStateOf(false) }
+    var partnerCursor      by remember { mutableStateOf<Offset?>(null) }
+    var showMenu           by remember { mutableStateOf(false) }
+    var showClearDialog    by remember { mutableStateOf(false) }
+
+    // ── Wallpaper banner state ─────────────────────────────────────────────
+    // Check on composition + re-check on resume
+    var doodluIsWallpaper  by remember { mutableStateOf(isDoodluActiveWallpaper(context)) }
+    var bannerDismissed    by remember { mutableStateOf(false) }
+    val showBanner = !doodluIsWallpaper && !bannerDismissed
+
+    // Re-check wallpaper status when user returns from picker
+    val wallpaperLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        doodluIsWallpaper = isDoodluActiveWallpaper(context)
+    }
 
     val connectionState by SyncManager.connectionState.collectAsState()
-    val playerCount by SyncManager.playerCount.collectAsState()
+    val playerCount     by SyncManager.playerCount.collectAsState()
+    val isConnected = connectionState == ConnectionState.CONNECTED
 
-    // Register stroke listener
+    // Listeners
     DisposableEffect(Unit) {
         val strokeListener = object : SyncManager.StrokeListener {
             override fun onStroke(stroke: com.doodlu.app.model.Stroke) {
                 val points = stroke.points.map { (x, y) -> Offset(x, y) }
-                val color = hexToColor(stroke.color)
-                val path = DrawPath(points, color, stroke.width)
-                strokes = strokes + path
-                strokeHistory = strokes
-                partnerDrawingToast = true
+                strokes = strokes + DrawPath(points, hexToColor(stroke.color), stroke.width)
             }
         }
         val cursorListener = object : SyncManager.CursorListener {
             override fun onCursor(userId: String, x: Float, y: Float) {
-                if (userId != SyncManager.myUserId.value) {
-                    partnerCursor = Offset(x, y)
-                }
+                if (userId != SyncManager.myUserId.value) partnerCursor = Offset(x, y)
             }
         }
         val canvasListener = object : SyncManager.CanvasListener {
-            override fun onClearCanvas() {
-                strokes = emptyList()
-                strokeHistory = emptyList()
+            override fun onClearCanvas() { strokes = emptyList() }
+        }
+        val modeListener = object : SyncManager.ModeListener {
+            override fun onModeSwitch(mode: String) {
+                if (mode == "tictactoe") onNavigateToTicTacToe()
             }
         }
         SyncManager.addStrokeListener(strokeListener)
         SyncManager.addCursorListener(cursorListener)
         SyncManager.addCanvasListener(canvasListener)
+        SyncManager.addModeListener(modeListener)
         onDispose {
             SyncManager.removeStrokeListener(strokeListener)
             SyncManager.removeCursorListener(cursorListener)
             SyncManager.removeCanvasListener(canvasListener)
+            SyncManager.removeModeListener(modeListener)
         }
     }
 
-    // Toast for partner drawing
-    LaunchedEffect(partnerDrawingToast) {
-        if (partnerDrawingToast) {
-            Toast.makeText(context, "Partner is drawing...", Toast.LENGTH_SHORT).show()
-            partnerDrawingToast = false
-        }
-    }
-
-    // Mode switch listener
-    DisposableEffect(Unit) {
-        val modeListener = object : SyncManager.ModeListener {
-            override fun onModeSwitch(mode: String) {
-                if (mode == "tictactoe") {
-                    onNavigateToTicTacToe()
-                }
-            }
-        }
-        SyncManager.addModeListener(modeListener)
-        onDispose { SyncManager.removeModeListener(modeListener) }
-    }
-
+    // Clear canvas dialog
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            containerColor = DoodluSurface,
+            shape = RoundedCornerShape(24.dp),
+            containerColor = KawaiiCard,
             title = {
-                Text("Clear Canvas?", color = DoodluTextPrimary, fontWeight = FontWeight.Bold)
+                Text(
+                    "Clear Canvas? 🗑️",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Bold,
+                    color = KawaiiTextPri
+                )
             },
             text = {
                 Text(
-                    "This will clear the canvas for everyone in the room.",
-                    color = DoodluTextSecondary
+                    "This clears it for everyone in the room.",
+                    fontFamily = NunitoFamily,
+                    color = KawaiiTextSec
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        SyncManager.sendClearCanvas()
-                        strokes = emptyList()
-                        strokeHistory = emptyList()
-                        showClearDialog = false
-                    }
-                ) {
-                    Text("Clear", color = DoodluPrimary, fontWeight = FontWeight.Bold)
+                TextButton(onClick = {
+                    SyncManager.sendClearCanvas()
+                    strokes = emptyList()
+                    showClearDialog = false
+                }) {
+                    Text(
+                        "Clear 🗑️",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = KawaiiRed
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("Cancel", color = DoodluTextSecondary)
+                    Text(
+                        "Cancel",
+                        fontFamily = NunitoFamily,
+                        color = KawaiiTextSec
+                    )
                 }
             }
         )
@@ -144,9 +149,9 @@ fun DrawingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1A1A2E))
+            .background(CanvasBg)
     ) {
-        // Full screen drawing canvas
+        // ── Full-screen dark drawing canvas ───────────────────────────────
         DrawingCanvas(
             strokes = strokes,
             partnerCursor = partnerCursor,
@@ -155,19 +160,17 @@ fun DrawingScreen(
             isEraser = isEraser,
             onStrokeComplete = { points ->
                 if (points.isNotEmpty()) {
-                    val path = DrawPath(
+                    strokes = strokes + DrawPath(
                         points = points.map { Offset(it.x, it.y) },
                         color = if (isEraser) Color(0xFF1A1A2E) else selectedColor,
                         width = if (isEraser) strokeWidth * 2 else strokeWidth
                     )
-                    strokes = strokes + path
-                    strokeHistory = strokes
                 }
             },
             modifier = Modifier.fillMaxSize()
         )
 
-        // Top bar
+        // ── Top bar (semi-transparent frosted) ───────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -176,185 +179,381 @@ fun DrawingScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Logo
-            Text(
-                text = "Doodlu",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = DoodluTextPrimary
-            )
-
-            // Right side
+            // Mini Doodlu logo
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50.dp))
+                    .background(KawaiiCard.copy(alpha = 0.85f))
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
-                ConnectionIndicator(
-                    state = connectionState,
-                    playerCount = playerCount
+                Text(
+                    text = "Doodlu",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = KawaiiPink
                 )
+                Text(" ❤️", fontSize = 14.sp)
+            }
 
+            // Center: connection indicator
+            KawaiiConnectionBadge(
+                isConnected = isConnected,
+                playerCount = playerCount
+            )
+
+            // Right side: mode toggle + menu
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Game mode toggle pill
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50.dp))
+                        .background(KawaiiCard.copy(alpha = 0.85f))
+                        .clickable {
+                            SyncManager.sendSwitchMode("tictactoe")
+                            onNavigateToTicTacToe()
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "🎮 Play",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        color = KawaiiTextSec
+                    )
+                }
+
+                // Overflow menu
                 Box {
-                    IconButton(
-                        onClick = { showMenu = true }
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(KawaiiCard.copy(alpha = 0.85f))
+                            .clickable { showMenu = true },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Filled.MoreVert,
                             contentDescription = "Menu",
-                            tint = DoodluTextPrimary
+                            tint = KawaiiTextSec,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
-                        containerColor = DoodluSurface,
-                        modifier = Modifier.background(DoodluSurface)
+                        containerColor = KawaiiCard,
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Set as Live Wallpaper", color = DoodluTextPrimary) },
-                            leadingIcon = {
-                                Icon(Icons.Filled.Wallpaper, null, tint = DoodluPrimary)
+                            text = {
+                                Text(
+                                    "Set as Live Wallpaper",
+                                    fontFamily = NunitoFamily,
+                                    color = KawaiiTextPri
+                                )
                             },
-                            onClick = {
-                                showMenu = false
-                                onSetWallpaper()
-                            }
+                            leadingIcon = {
+                                Icon(Icons.Filled.Wallpaper, null, tint = KawaiiPink)
+                            },
+                            onClick = { showMenu = false; onSetWallpaper() }
                         )
                         DropdownMenuItem(
-                            text = { Text("Switch to Tic-Tac-Toe", color = DoodluTextPrimary) },
-                            leadingIcon = {
-                                Icon(Icons.Filled.GridOn, null, tint = DoodluSecondary)
+                            text = {
+                                Text(
+                                    "Settings",
+                                    fontFamily = NunitoFamily,
+                                    color = KawaiiTextPri
+                                )
                             },
-                            onClick = {
-                                showMenu = false
-                                SyncManager.sendSwitchMode("tictactoe")
-                                onNavigateToTicTacToe()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Settings", color = DoodluTextPrimary) },
                             leadingIcon = {
-                                Icon(Icons.Filled.Settings, null, tint = DoodluTextSecondary)
+                                Icon(Icons.Filled.Settings, null, tint = KawaiiTextSec)
                             },
-                            onClick = {
-                                showMenu = false
-                                onNavigateToSettings()
-                            }
+                            onClick = { showMenu = false; onNavigateToSettings() }
                         )
                     }
                 }
             }
         }
 
-        // Bottom toolbar
+        // ── Bottom floating toolbar ───────────────────────────────────────
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = 16.dp),
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Color picker row
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50.dp))
-                    .background(DoodluSurface.copy(alpha = 0.9f))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            // ── Wallpaper promo banner (shown until set or dismissed) ─────
+            AnimatedVisibility(
+                visible = showBanner,
+                enter = slideInVertically(
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                ) { it } + fadeIn(),
+                exit = slideOutVertically(tween(280)) { it } + fadeOut(tween(200))
             ) {
-                ColorPicker(
-                    selectedColor = if (isEraser) "" else selectedColorHex,
-                    onColorSelected = { hex, color ->
-                        selectedColorHex = hex
-                        selectedColor = color
-                        isEraser = false
-                    }
+                WallpaperPromoBanner(
+                    onSetNow = {
+                        val intent = buildWallpaperPickerIntent(context)
+                        wallpaperLauncher.launch(intent)
+                    },
+                    onDismiss = { bannerDismissed = true }
                 )
             }
 
-            // Tool row
+            // Color picker row
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50.dp))
-                    .background(DoodluSurface.copy(alpha = 0.9f))
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Stroke width slider
-                Text(
-                    text = "✏️",
-                    fontSize = 16.sp
-                )
-                Slider(
-                    value = strokeWidth,
-                    onValueChange = { strokeWidth = it },
-                    valueRange = 2f..12f,
-                    modifier = Modifier.width(100.dp),
-                    colors = SliderDefaults.colors(
-                        thumbColor = DoodluPrimary,
-                        activeTrackColor = DoodluPrimary,
-                        inactiveTrackColor = DoodluSurfaceVariant
+                    .shadow(
+                        elevation = 8.dp,
+                        shape = RoundedCornerShape(50.dp),
+                        ambientColor = Color.Black.copy(alpha = 0.08f)
                     )
-                )
+                    .clip(RoundedCornerShape(50.dp))
+                    .background(KawaiiCard)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                DrawingColorsCompose.zip(DrawingColors).forEach { (color, hex) ->
+                    val isSelected = !isEraser && selectedColorHex == hex
+                    val circleScale by animateFloatAsState(
+                        targetValue = if (isSelected) 1.25f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label = "color_scale_$hex"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .scale(circleScale)
+                            .shadow(
+                                elevation = if (isSelected) 4.dp else 0.dp,
+                                shape = CircleShape,
+                                spotColor = color.copy(alpha = 0.4f)
+                            )
+                            .clip(CircleShape)
+                            .background(color)
+                            .then(
+                                if (isSelected) Modifier.border(
+                                    2.5.dp, KawaiiCard, CircleShape
+                                ) else Modifier
+                            )
+                            .clickable(
+                                interactionSource = remember {
+                                    androidx.compose.foundation.interaction.MutableInteractionSource()
+                                },
+                                indication = null
+                            ) {
+                                selectedColorHex = hex
+                                selectedColor = color
+                                isEraser = false
+                            }
+                    )
+                }
+            }
+
+            // Tools row
+            Row(
+                modifier = Modifier
+                    .shadow(
+                        elevation = 8.dp,
+                        shape = RoundedCornerShape(50.dp),
+                        ambientColor = Color.Black.copy(alpha = 0.08f)
+                    )
+                    .clip(RoundedCornerShape(50.dp))
+                    .background(KawaiiCard)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Brush sizes (3 presets)
+                listOf(3f to "·", 6f to "●", 10f to "◉").forEach { (size, icon) ->
+                    val isSelected = !isEraser && strokeWidth == size
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isSelected) KawaiiCodeBg else Color.Transparent
+                            )
+                            .clickable(
+                                interactionSource = remember {
+                                    androidx.compose.foundation.interaction.MutableInteractionSource()
+                                },
+                                indication = null
+                            ) {
+                                strokeWidth = size
+                                isEraser = false
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = icon,
+                            fontSize = when (size) {
+                                3f -> 10.sp
+                                6f -> 16.sp
+                                else -> 22.sp
+                            },
+                            color = if (isSelected) KawaiiPink else KawaiiTextSec
+                        )
+                    }
+                }
 
                 // Divider
                 Box(
-                    modifier = Modifier
+                    Modifier
                         .width(1.dp)
                         .height(24.dp)
-                        .background(DoodluSurfaceVariant)
+                        .background(KawaiiCodeBorder.copy(alpha = 0.3f))
                 )
 
                 // Eraser
-                IconButton(
-                    onClick = { isEraser = !isEraser },
+                Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .then(
-                            if (isEraser) Modifier
-                                .clip(CircleShape)
-                                .background(DoodluPrimary.copy(alpha = 0.2f))
-                            else Modifier
-                        )
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(if (isEraser) KawaiiCodeBg else Color.Transparent)
+                        .clickable(
+                            interactionSource = remember {
+                                androidx.compose.foundation.interaction.MutableInteractionSource()
+                            },
+                            indication = null
+                        ) { isEraser = !isEraser },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "⬜", fontSize = 18.sp)
+                    Text("⬜", fontSize = 16.sp)
                 }
 
                 // Undo
-                IconButton(
-                    onClick = {
-                        if (strokes.isNotEmpty()) {
-                            strokes = strokes.dropLast(1)
-                        }
-                    },
-                    modifier = Modifier.size(36.dp)
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember {
+                                androidx.compose.foundation.interaction.MutableInteractionSource()
+                            },
+                            indication = null
+                        ) {
+                            if (strokes.isNotEmpty()) strokes = strokes.dropLast(1)
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Filled.Undo,
                         contentDescription = "Undo",
-                        tint = DoodluTextSecondary,
-                        modifier = Modifier.size(20.dp)
+                        tint = KawaiiTextSec,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
                 // Clear
-                IconButton(
-                    onClick = { showClearDialog = true },
-                    modifier = Modifier.size(36.dp)
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember {
+                                androidx.compose.foundation.interaction.MutableInteractionSource()
+                            },
+                            indication = null
+                        ) { showClearDialog = true },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Filled.Delete,
                         contentDescription = "Clear",
-                        tint = DoodluTextSecondary,
-                        modifier = Modifier.size(20.dp)
+                        tint = KawaiiRed.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
+        }
+    }
+}
+
+// ── Persistent wallpaper promo banner ─────────────────────────────────────
+@Composable
+private fun WallpaperPromoBanner(
+    onSetNow: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(16.dp),
+                ambientColor = KawaiiPink.copy(alpha = 0.12f)
+            )
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFFFE8EC))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Promo text (takes all remaining space)
+        Text(
+            text = "Set as wallpaper to see doodles on your lock screen 💕",
+            fontFamily = NunitoFamily,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp,
+            color = Color(0xFF2D2D3A),
+            modifier = Modifier.weight(1f),
+            lineHeight = 18.sp
+        )
+
+        // "Set now" pill button
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50.dp))
+                .background(KawaiiPink)
+                .clickable(
+                    interactionSource = remember {
+                        androidx.compose.foundation.interaction.MutableInteractionSource()
+                    },
+                    indication = null,
+                    onClick = onSetNow
+                )
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Set now",
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                color = Color.White
+            )
+        }
+
+        // Dismiss X
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .clickable(
+                    interactionSource = remember {
+                        androidx.compose.foundation.interaction.MutableInteractionSource()
+                    },
+                    indication = null,
+                    onClick = onDismiss
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Filled.Close,
+                contentDescription = "Dismiss",
+                tint = Color(0xFF8E8EA0),
+                modifier = Modifier.size(14.dp)
+            )
         }
     }
 }
