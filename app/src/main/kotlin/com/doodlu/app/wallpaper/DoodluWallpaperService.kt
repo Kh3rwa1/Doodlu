@@ -247,12 +247,6 @@ class DoodluWallpaperService : WallpaperService() {
                 safeTouchEnable()
                 Log.d(TAG, "Wallpaper VISIBLE — ensuring WebSocket is alive")
 
-                // Immediately clear stale local strokes — the server will
-                // re-send the authoritative list via the "init" response.
-                renderHandler.post {
-                    strokes.clear()
-                    drawFrame()
-                }
                 scope.launch {
                     // Re-read bg color preference every time we become visible
                     val prefs = PreferencesManager(this@DoodluWallpaperService)
