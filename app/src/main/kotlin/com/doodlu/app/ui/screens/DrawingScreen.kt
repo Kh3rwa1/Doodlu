@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.doodlu.app.data.PreferencesManager
 import com.doodlu.app.sync.ConnectionState
 import com.doodlu.app.sync.SyncManager
 import com.doodlu.app.ui.components.*
@@ -36,9 +37,11 @@ import com.doodlu.app.util.isDoodluActiveWallpaper
 fun DrawingScreen(
     onNavigateToTicTacToe: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onSetWallpaper: () -> Unit
+    onSetWallpaper: () -> Unit,
+    onKicked: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val prefs   = remember { PreferencesManager(context) }
 
     var strokes            by remember { mutableStateOf(listOf<DrawPath>()) }
     var selectedColorHex   by remember { mutableStateOf("#FF8A65") }
@@ -46,12 +49,21 @@ fun DrawingScreen(
     var strokeWidth        by remember { mutableStateOf(5f) }
     var isEraser           by remember { mutableStateOf(false) }
 
-    val currentMode by SyncManager.currentMode.collectAsState()
-    
-    // Thread-safe navigation observation
-    LaunchedEffect(currentMode) {
-        if (currentMode == "tictactoe") {
-            onNavigateToTicTacToe()
+    // ── Navigate based on EXPLICIT server mode-switch events only ────────────
+    // We intentionally use modeSwitchEvent (SharedFlow) instead of currentMode
+    // (StateFlow) so that reconnect "init" messages with stale mode can never
+    // trigger navigation. Only a real "switchmode" broadcast moves us.
+    LaunchedEffect(Unit) {
+        SyncManager.modeSwitchEvent.collect { mode ->
+            when (mode) {
+                "tictactoe" -> onNavigateToTicTacToe()
+                "kicked"    -> {
+                    SyncManager.disconnect()
+                    prefs.clearRoom()
+                    onKicked()
+                }
+                // "whiteboard": we're already here — no action needed
+            }
         }
     }
 
@@ -82,7 +94,7 @@ fun DrawingScreen(
         val strokeListener = object : SyncManager.StrokeListener {
             override fun onStroke(stroke: com.doodlu.app.model.Stroke) {
                 val points = stroke.points.map { (x, y) -> Offset(x, y) }
-                strokes = strokes + DrawPath(points, hexToColor(stroke.color), stroke.width)
+                strokes = strokes + DrawPath(points, hexToColor(stroke.color), stroke.width, isLocal = false)
             }
         }
         val cursorListener = object : SyncManager.CursorListener {
@@ -445,7 +457,9 @@ fun DrawingScreen(
                             },
                             indication = null
                         ) {
-                            if (strokes.isNotEmpty()) strokes = strokes.dropLast(1)
+                            // Only undo the last stroke drawn by the local user
+                            val lastLocalIdx = strokes.indexOfLast { it.isLocal }
+                            if (lastLocalIdx >= 0) strokes = strokes.toMutableList().also { it.removeAt(lastLocalIdx) }
                         },
                     contentAlignment = Alignment.Center
                 ) {

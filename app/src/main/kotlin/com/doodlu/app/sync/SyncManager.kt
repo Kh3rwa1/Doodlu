@@ -64,6 +64,13 @@ object SyncManager {
     val mySymbol        = MutableStateFlow("X")
     val myUserId        = MutableStateFlow("")
 
+    /**
+     * Fires ONLY when the server sends an explicit "switchmode" broadcast.
+     * Use this for navigation so that stale "init" state never triggers unwanted
+     * screen transitions. The value is the new mode string.
+     */
+    val modeSwitchEvent = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 1)
+
     // ── Listener interfaces ──────────────────────────────────────────────────
     interface StrokeListener    { fun onStroke(stroke: Stroke) }
     interface CursorListener    { fun onCursor(userId: String, x: Float, y: Float) }
@@ -290,6 +297,9 @@ object SyncManager {
 
                         val strokesJson = stateJson.optJSONArray("strokes")
                         if (strokesJson != null) {
+                            // Clear local strokes before replaying server state so
+                            // stale drawings don't persist after a canvas clear.
+                            synchronized(canvasListeners) { canvasListeners.forEach { it.onClearCanvas() } }
                             for (i in 0 until strokesJson.length()) {
                                 val stroke = parseStroke(strokesJson.getJSONObject(i))
                                 if (stroke != null) {
@@ -330,6 +340,7 @@ object SyncManager {
                 "switchmode" -> {
                     val mode = json.optString("mode", "whiteboard")
                     currentMode.value = mode
+                    modeSwitchEvent.tryEmit(mode)
                     synchronized(modeListeners) { modeListeners.forEach { it.onModeSwitch(mode) } }
                 }
 
@@ -406,6 +417,13 @@ object SyncManager {
 
     fun sendNewGame()     { send(JSONObject().apply { put("type", "newgame") }.toString()) }
     fun sendClearCanvas() { send(JSONObject().apply { put("type", "clearcanvas") }.toString()) }
+    /**
+     * Kicks the partner out of the room by broadcasting a special mode value.
+     * Does NOT update our own currentMode — only the receiving side reacts to "kicked".
+     */
+    fun sendKickUser() {
+        send(JSONObject().apply { put("type", "switchmode"); put("mode", "kicked") }.toString())
+    }
     private fun sendPing(){ send(JSONObject().apply { put("type", "ping") }.toString()) }
 
     private fun send(text: String): Boolean {

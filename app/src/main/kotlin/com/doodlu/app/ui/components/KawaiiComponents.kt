@@ -334,6 +334,7 @@ fun KawaiiPrimaryButton(
                     indication = null
                 ) {
                     scope.launch {
+                        onClick()
                         scaleAnim.animateTo(0.93f, spring(stiffness = Spring.StiffnessHigh))
                         scaleAnim.animateTo(
                             1f, spring(
@@ -341,7 +342,6 @@ fun KawaiiPrimaryButton(
                                 stiffness = Spring.StiffnessMedium
                             )
                         )
-                        onClick()
                     }
                 } else Modifier
             )
@@ -407,6 +407,7 @@ fun KawaiiSecondaryButton(
                     indication = null
                 ) {
                     scope.launch {
+                        onClick()
                         scaleAnim.animateTo(0.93f, spring(stiffness = Spring.StiffnessHigh))
                         scaleAnim.animateTo(
                             1f, spring(
@@ -414,7 +415,6 @@ fun KawaiiSecondaryButton(
                                 stiffness = Spring.StiffnessMedium
                             )
                         )
-                        onClick()
                     }
                 } else Modifier
             )

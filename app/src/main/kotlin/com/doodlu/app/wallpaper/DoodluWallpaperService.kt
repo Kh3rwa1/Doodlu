@@ -73,6 +73,12 @@ class DoodluWallpaperService : WallpaperService() {
         // Track whether wallpaper is visible — prevents wasted renders
         @Volatile private var isVisible = false
 
+        // Reentrancy guard: setTouchEventsEnabled() internally calls
+        // updateSurface() which can trigger onSurfaceCreated /
+        // onVisibilityChanged again on some Android versions, causing
+        // infinite recursion.  This flag + handler.post() breaks the loop.
+        private var insideSurfaceCallback = false
+
         // Room credentials loaded from DataStore
         @Volatile private var savedRoomId: String? = null
         @Volatile private var savedUserId: String? = null
@@ -122,6 +128,14 @@ class DoodluWallpaperService : WallpaperService() {
         private val whiteDotPaint = Paint().apply {
             color = Color.WHITE
             isAntiAlias = true
+        }
+
+        // Reusable paint for drawStroke — mutated per call to avoid per-stroke allocations
+        private val strokePaint = Paint().apply {
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
         }
 
         // ── SyncManager listeners ─────────────────────────────────────────────
@@ -174,7 +188,7 @@ class DoodluWallpaperService : WallpaperService() {
 
         override fun onCreate(surfaceHolder: SurfaceHolder) {
             super.onCreate(surfaceHolder)
-            setTouchEventsEnabled(true)
+            safeTouchEnable()
             registerListeners()
             SyncManager.registerClient()
 
@@ -221,6 +235,10 @@ class DoodluWallpaperService : WallpaperService() {
         override fun onVisibilityChanged(visible: Boolean) {
             isVisible = visible
             if (visible) {
+                // Re-assert touch enabled every time we become visible — Android
+                // can silently reset this flag across lock/unlock cycles on
+                // some OEM devices and Android versions.
+                safeTouchEnable()
                 Log.d(TAG, "Wallpaper VISIBLE — ensuring WebSocket is alive")
                 scope.launch {
                     val roomId = savedRoomId
@@ -254,8 +272,13 @@ class DoodluWallpaperService : WallpaperService() {
         }
 
         override fun onSurfaceCreated(holder: SurfaceHolder) {
-            super.onSurfaceCreated(holder)
-            scheduleRedraw()
+            insideSurfaceCallback = true
+            try {
+                super.onSurfaceCreated(holder)
+                scheduleRedraw()
+            } finally {
+                insideSurfaceCallback = false
+            }
         }
 
         override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -272,12 +295,27 @@ class DoodluWallpaperService : WallpaperService() {
         // ── Touch input ───────────────────────────────────────────────────────
 
         override fun onTouchEvent(event: MotionEvent) {
-            when (currentMode) {
-                "whiteboard" -> handleDrawTouch(event)
-                "tictactoe"  -> handleTttTouch(event)
+            // MotionEvent objects are recycled by the framework after this call
+            // returns, so we must obtain a copy before posting to the render
+            // thread. Failing to do this was causing currentPoints/strokes to
+            // be mutated on the main thread while drawFrame reads them on
+            // renderHandler — a silent ConcurrentModificationException swallowed
+            // by drawFrame's try/catch, resulting in dropped frames on the lock
+            // screen.
+            val copy = MotionEvent.obtain(event)
+            renderHandler.post {
+                when (currentMode) {
+                    "whiteboard" -> handleDrawTouch(copy)
+                    "tictactoe"  -> handleTttTouch(copy)
+                }
+                copy.recycle()
             }
         }
 
+        // NOTE: handleDrawTouch and handleTttTouch are ONLY called from
+        // renderHandler (via the copy posted in onTouchEvent). All mutations of
+        // currentPoints, strokes, lastSentIndex, and tttState therefore happen
+        // on the same thread as drawFrame — no synchronisation needed.
         private fun handleDrawTouch(event: MotionEvent) {
             val x = event.x
             val y = event.y
@@ -294,17 +332,20 @@ class DoodluWallpaperService : WallpaperService() {
                     if (currentPoints.size - lastSentIndex >= 5) {
                         val batch = currentPoints.subList(lastSentIndex, currentPoints.size).toList()
                         SyncManager.sendStroke(batch, "#FFFFFF", 4f)
-                        lastSentIndex = currentPoints.size
+                        // Overlap: keep last point as start of next batch so
+                        // consecutive segments connect without gaps.
+                        lastSentIndex = currentPoints.size - 1
                     }
-                    scheduleRedraw()
+                    // Already on renderHandler — draw immediately instead of posting
+                    drawFrame()
                 }
                 MotionEvent.ACTION_UP -> {
                     val remaining = currentPoints.subList(lastSentIndex, currentPoints.size).toList()
-                    if (remaining.isNotEmpty()) SyncManager.sendStroke(remaining, "#FFFFFF", 4f)
+                    if (remaining.size > 1) SyncManager.sendStroke(remaining, "#FFFFFF", 4f)
                     strokes.add(Stroke(currentPoints.toList(), "#FFFFFF", 4f))
                     currentPoints.clear()
                     lastSentIndex = 0
-                    scheduleRedraw()
+                    drawFrame()
                 }
             }
         }
@@ -406,19 +447,13 @@ class DoodluWallpaperService : WallpaperService() {
 
         private fun drawStroke(canvas: Canvas, stroke: Stroke) {
             if (stroke.points.size < 2) return
-            val paint = Paint().apply {
-                try { color = Color.parseColor(stroke.color) } catch (_: Exception) { color = Color.WHITE }
-                strokeWidth = stroke.width
-                style = Paint.Style.STROKE
-                isAntiAlias = true
-                strokeCap = Paint.Cap.ROUND
-                strokeJoin = Paint.Join.ROUND
-            }
+            strokePaint.color = try { Color.parseColor(stroke.color) } catch (_: Exception) { Color.WHITE }
+            strokePaint.strokeWidth = stroke.width
             val path = Path().apply {
                 moveTo(stroke.points[0].first, stroke.points[0].second)
                 for (i in 1 until stroke.points.size) lineTo(stroke.points[i].first, stroke.points[i].second)
             }
-            canvas.drawPath(path, paint)
+            canvas.drawPath(path, strokePaint)
         }
 
         private fun drawTicTacToe(canvas: Canvas) {
@@ -482,6 +517,29 @@ class DoodluWallpaperService : WallpaperService() {
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
+
+        /**
+         * Safely enables touch events without risking recursion.
+         *
+         * setTouchEventsEnabled() calls updateSurface() internally, which
+         * on some Android versions/OEMs re-enters onSurfaceCreated() or
+         * onVisibilityChanged(). By posting to the main handler we ensure
+         * the call happens AFTER the current lifecycle callback returns,
+         * and the insideSurfaceCallback guard provides extra safety.
+         */
+        private fun safeTouchEnable() {
+            if (insideSurfaceCallback) return
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                try {
+                    insideSurfaceCallback = true
+                    setTouchEventsEnabled(true)
+                } catch (e: Exception) {
+                    Log.w(TAG, "setTouchEventsEnabled failed: ${e.message}")
+                } finally {
+                    insideSurfaceCallback = false
+                }
+            }
+        }
 
         private fun syncStateFromManager() {
             currentMode = SyncManager.currentMode.value

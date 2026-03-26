@@ -2,6 +2,7 @@ package com.doodlu.app.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -18,8 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -64,7 +68,55 @@ fun SettingsScreen(
         doodluIsWallpaper = isDoodluActiveWallpaper(context)
     }
 
-    var showLeaveDialog by remember { mutableStateOf(false) }
+    var showLeaveDialog  by remember { mutableStateOf(false) }
+    var showRevokeDialog by remember { mutableStateOf(false) }
+
+    // ── Revoke Partner confirmation dialog ──────────────────────────────────
+    if (showRevokeDialog) {
+        AlertDialog(
+            onDismissRequest = { showRevokeDialog = false },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = KawaiiCard,
+            title = {
+                Text(
+                    "Remove Partner? 💔",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    color = KawaiiTextPri
+                )
+            },
+            text = {
+                Text(
+                    "This will disconnect your partner from the room. They will need to re-join to draw together again.",
+                    fontFamily = NunitoFamily,
+                    color = KawaiiTextSec
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    SyncManager.sendKickUser()
+                    showRevokeDialog = false
+                }) {
+                    Text(
+                        "Remove 💔",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = KawaiiRed
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRevokeDialog = false }) {
+                    Text(
+                        "Cancel",
+                        fontFamily = NunitoFamily,
+                        color = KawaiiPink
+                    )
+                }
+            }
+        )
+    }
 
     // ── Leave Room confirmation dialog ────────────────────────────────────
     if (showLeaveDialog) {
@@ -252,6 +304,55 @@ fun SettingsScreen(
                         playerCount = playerCount
                     )
                 }
+
+                // ── Revoke partner — only when someone else is in the room ─
+                if (isConnected && playerCount >= 2) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = KawaiiCodeBorder.copy(alpha = 0.3f))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(KawaiiRed.copy(alpha = 0.06f))
+                            .border(1.5.dp, KawaiiRed.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                            .clickable(
+                                interactionSource = remember {
+                                    androidx.compose.foundation.interaction.MutableInteractionSource()
+                                },
+                                indication = null
+                            ) { showRevokeDialog = true }
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.PersonRemove,
+                                contentDescription = null,
+                                tint = KawaiiRed,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Revoke Partner",
+                                    fontFamily = NunitoFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.sp,
+                                    color = KawaiiRed
+                                )
+                                Text(
+                                    "Remove them from your room",
+                                    fontFamily = NunitoFamily,
+                                    fontSize = 12.sp,
+                                    color = KawaiiRed.copy(alpha = 0.65f)
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -325,7 +426,7 @@ fun SettingsScreen(
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Wallpaper Status Card
+// Wallpaper Status Card — Premium
 // ════════════════════════════════════════════════════════════════════════════
 @Composable
 private fun WallpaperStatusCard(
@@ -334,83 +435,182 @@ private fun WallpaperStatusCard(
     onSetWallpaper: () -> Unit,
     onTargetChange: (String) -> Unit
 ) {
+    val infiniteTransition = rememberInfiniteTransition(label = "wp_card")
+
     KawaiiCard(modifier = Modifier.fillMaxWidth()) {
-        SettingsSectionTitle("Wallpaper 🖼️")
-        Spacer(modifier = Modifier.height(14.dp))
+
+        // ── Gradient header pill ─────────────────────────────────────────
+        val headerGlow by infiniteTransition.animateFloat(
+            initialValue = 0.35f, targetValue = 0.65f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2000, easing = EaseInOut),
+                repeatMode = RepeatMode.Reverse
+            ), label = "hg"
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                KawaiiPink.copy(alpha = headerGlow),
+                                KawaiiPurple.copy(alpha = headerGlow)
+                            )
+                        )
+                    )
+                    .padding(horizontal = 14.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    "Wallpaper 🖼️",
+                    fontFamily = NunitoFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color.White
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         if (isActive) {
-            // ── Active state: green checkmark badge ───────────────────
+            // ── Active: pulsing green status with animated icon ───────
+            val pulseScale by infiniteTransition.animateFloat(
+                initialValue = 1f, targetValue = 1.08f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1200, easing = EaseInOut),
+                    repeatMode = RepeatMode.Reverse
+                ), label = "ps"
+            )
+            val glowAlpha by infiniteTransition.animateFloat(
+                initialValue = 0.10f, targetValue = 0.22f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1200, easing = EaseInOut),
+                    repeatMode = RepeatMode.Reverse
+                ), label = "ga"
+            )
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(
-                        elevation = 2.dp,
-                        shape = RoundedCornerShape(14.dp),
-                        ambientColor = KawaiiGreen.copy(alpha = 0.18f)
+                        elevation = 4.dp,
+                        shape = RoundedCornerShape(18.dp),
+                        ambientColor = KawaiiGreen.copy(alpha = 0.15f),
+                        spotColor = KawaiiGreen.copy(alpha = 0.10f)
                     )
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(KawaiiGreen.copy(alpha = 0.10f))
-                    .border(1.5.dp, KawaiiGreen.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                KawaiiGreen.copy(alpha = glowAlpha),
+                                KawaiiGreen.copy(alpha = glowAlpha * 0.6f)
+                            )
+                        )
+                    )
+                    .border(1.5.dp, KawaiiGreen.copy(alpha = 0.30f), RoundedCornerShape(18.dp))
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Big green checkmark circle
+                // Animated checkmark circle
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(40.dp)
+                        .scale(pulseScale)
                         .clip(CircleShape)
-                        .background(KawaiiGreen.copy(alpha = 0.18f)),
+                        .background(
+                            Brush.radialGradient(
+                                listOf(
+                                    KawaiiGreen.copy(alpha = 0.25f),
+                                    KawaiiGreen.copy(alpha = 0.08f)
+                                )
+                            )
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Filled.CheckCircle,
                         contentDescription = null,
                         tint = KawaiiGreen,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Doodlu is your wallpaper",
+                        "Doodlu is live! ✨",
                         fontFamily = NunitoFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = KawaiiGreen
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        "Your doodles show up on your lock screen in real time 💕",
+                        "Doodles show up on your screen in real time 💕",
                         fontFamily = NunitoFamily,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         color = KawaiiGreen.copy(alpha = 0.75f),
-                        lineHeight = 16.sp
+                        lineHeight = 17.sp
                     )
                 }
             }
         } else {
-            // ── Inactive state: prompt to set wallpaper ───────────────
+            // ── Inactive: premium prompt with animated phone icon ─────
+            val phoneFloat by infiniteTransition.animateFloat(
+                initialValue = 0f, targetValue = 6f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(2200, easing = EaseInOut),
+                    repeatMode = RepeatMode.Reverse
+                ), label = "pf"
+            )
+
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // Floating phone emoji with glow
+                Box(
+                    modifier = Modifier
+                        .graphicsLayer { translationY = phoneFloat }
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(
+                                    KawaiiPink.copy(alpha = 0.12f),
+                                    KawaiiPurple.copy(alpha = 0.06f),
+                                    Color.Transparent
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("📱", fontSize = 28.sp)
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
                 Text(
-                    "Doodlu isn't your wallpaper yet",
+                    "Not set as wallpaper yet",
                     fontFamily = NunitoFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
                     color = KawaiiTextPri,
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    "Set it now so your partner's doodles appear on your lock screen!",
+                    "Set it now so your partner's doodles appear on your screen! ✨",
                     fontFamily = NunitoFamily,
                     fontSize = 14.sp,
                     color = KawaiiTextSec,
                     textAlign = TextAlign.Center,
-                    lineHeight = 17.sp
+                    lineHeight = 20.sp
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 KawaiiPrimaryButton(
                     text = "Set as Wallpaper",
                     emoji = "🎨",
@@ -420,51 +620,56 @@ private fun WallpaperStatusCard(
             }
         }
 
+        Spacer(modifier = Modifier.height(18.dp))
+        HorizontalDivider(color = KawaiiCodeBorder.copy(alpha = 0.25f))
         Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider(color = KawaiiCodeBorder.copy(alpha = 0.3f))
-        Spacer(modifier = Modifier.height(14.dp))
 
-        // ── Target selection (informational chips) ────────────────────
+        // ── Target selection header ──────────────────────────────────────
         Text(
-            "Wallpaper Screen",
+            "Where to show 🎯",
             fontFamily = NunitoFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
             color = KawaiiTextPri
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            KawaiiChip(
-                label = "Lock Screen \uD83D\uDD12",
+            PremiumWallpaperChip(
+                label = "Lock Screen 🔒",
                 selected = wallpaperTarget == "lock",
                 onClick = { onTargetChange("lock") }
             )
-            KawaiiChip(
-                label = "Home + Lock \uD83C\uDFE0",
+            PremiumWallpaperChip(
+                label = "Home + Lock 🏠",
                 selected = wallpaperTarget == "both",
                 onClick = { onTargetChange("both") }
             )
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Informational note
+        // Informational note — upgraded
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(KawaiiCodeBg)
-                .padding(horizontal = 12.dp, vertical = 9.dp),
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            KawaiiCodeBg,
+                            KawaiiCodeBg.copy(alpha = 0.7f)
+                        )
+                    )
+                )
+                .border(1.dp, KawaiiCodeBorder.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            Text("💡", fontSize = 13.sp)
             Text(
-                "\u2139\uFE0F",
-                fontSize = 13.sp
-            )
-            Text(
-                "Android controls this choice in the wallpaper picker dialog. You can also change it any time in your phone's wallpaper settings.",
+                "Android controls this in the wallpaper picker. You can change it any time in your phone's settings.",
                 fontFamily = NunitoFamily,
                 fontSize = 12.sp,
                 color = KawaiiTextSec,
@@ -472,6 +677,62 @@ private fun WallpaperStatusCard(
                 modifier = Modifier.weight(1f)
             )
         }
+    }
+}
+
+// ── Premium wallpaper chip with gradient when selected ─────────────────────
+@Composable
+private fun PremiumWallpaperChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val bgColor by animateColorAsState(
+        targetValue = if (selected) KawaiiPink else KawaiiCodeBg,
+        animationSpec = tween(300),
+        label = "chip_bg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) KawaiiPink else KawaiiCodeBorder,
+        animationSpec = tween(300),
+        label = "chip_border"
+    )
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50.dp))
+            .then(
+                if (selected) Modifier.shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(50.dp),
+                    spotColor = KawaiiPink.copy(alpha = 0.25f)
+                ) else Modifier
+            )
+            .background(
+                if (selected) Brush.horizontalGradient(
+                    listOf(KawaiiPink, KawaiiCoral)
+                ) else Brush.horizontalGradient(
+                    listOf(bgColor, bgColor)
+                )
+            )
+            .border(
+                width = 1.5.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(50.dp)
+            )
+            .clickable(
+                interactionSource = remember {
+                    androidx.compose.foundation.interaction.MutableInteractionSource()
+                },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label,
+            fontFamily = NunitoFamily,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+            fontSize = 13.sp,
+            color = if (selected) Color.White else KawaiiTextSec
+        )
     }
 }
 

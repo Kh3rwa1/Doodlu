@@ -19,7 +19,8 @@ data class DrawPath(
     val points: List<Offset>,
     val color: Color,
     val width: Float,
-    val isEraser: Boolean = false
+    val isEraser: Boolean = false,
+    val isLocal: Boolean = true
 )
 
 @Composable
@@ -80,15 +81,17 @@ fun DrawingCanvas(
                                 color = if (isEraser) "#1A1A2E" else colorToHex(strokeColor),
                                 width = strokeWidth
                             )
-                            lastSentIndex = currentPath.size
+                            // Overlap: keep last point as start of next batch so
+                            // consecutive segments connect without gaps.
+                            lastSentIndex = currentPath.size - 1
                         }
                         change.consume()
                     },
                     onDragEnd = {
-                        // Send remaining points
+                        // Send remaining points (from overlap point onward)
                         if (lastSentIndex < currentPath.size) {
                             val batch = currentPath.subList(lastSentIndex, currentPath.size)
-                            if (batch.isNotEmpty()) {
+                            if (batch.size > 1) {
                                 SyncManager.sendStroke(
                                     points = batch.map { Pair(it.x, it.y) },
                                     color = if (isEraser) "#1A1A2E" else colorToHex(strokeColor),
@@ -110,12 +113,6 @@ fun DrawingCanvas(
 
         // Draw current stroke in progress
         if (currentPath.size > 1) {
-            val paint = Paint().apply {
-                color = if (isEraser) Color(0xFF1A1A2E) else strokeColor
-                isAntiAlias = true
-                strokeCap = StrokeCap.Round
-                strokeJoin = StrokeJoin.Round
-            }
             drawIntoCanvas { canvas ->
                 val androidPath = android.graphics.Path()
                 androidPath.moveTo(currentPath[0].x, currentPath[0].y)

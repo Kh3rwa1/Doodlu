@@ -85,7 +85,12 @@ fun DoodluNavGraph(
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
                 },
-                onSetWallpaper = onSetWallpaper
+                onSetWallpaper = onSetWallpaper,
+                onKicked = {
+                    navController.navigate(Screen.Pairing.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
 

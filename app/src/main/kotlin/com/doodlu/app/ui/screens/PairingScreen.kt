@@ -287,6 +287,7 @@ fun PairingScreen(onPaired: (showSetup: Boolean) -> Unit) {
                             focusRequesters[idx - 1].requestFocus()
                         } else {
                             joinChars = joinChars.clone().also { it[idx] = "" }
+                            if (idx > 0) focusRequesters[idx - 1].requestFocus()
                         }
                     },
                     onJoin = {

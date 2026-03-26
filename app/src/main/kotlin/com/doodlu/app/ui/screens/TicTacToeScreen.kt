@@ -36,7 +36,6 @@ fun TicTacToeScreen(onBackToDrawing: () -> Unit) {
     var showConfetti by remember { mutableStateOf(false) }
     var prevWinner   by remember { mutableStateOf<String?>(null) }
     val isConnected  = connState == com.doodlu.app.sync.ConnectionState.CONNECTED
-    val currentMode  by SyncManager.currentMode.collectAsState()
 
     // ── Safe Navigation State Handling ────────────────────────────
     var hasNavigatedBack by remember { mutableStateOf(false) }
@@ -49,10 +48,19 @@ fun TicTacToeScreen(onBackToDrawing: () -> Unit) {
         }
     }
 
-    LaunchedEffect(currentMode) {
-        if (currentMode == "whiteboard" && !hasNavigatedBack) {
-            hasNavigatedBack = true
-            onBackToDrawing()
+    // ── Server-driven navigation: react only to explicit switchmode broadcasts ─
+    // Using modeSwitchEvent (SharedFlow) avoids reacting to stale init state.
+    LaunchedEffect(Unit) {
+        SyncManager.modeSwitchEvent.collect { mode ->
+            if (!hasNavigatedBack) {
+                when (mode) {
+                    "whiteboard",
+                    "kicked"    -> {
+                        hasNavigatedBack = true
+                        onBackToDrawing()
+                    }
+                }
+            }
         }
     }
 
