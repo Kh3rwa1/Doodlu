@@ -240,6 +240,13 @@ class DoodluWallpaperService : WallpaperService() {
                 // some OEM devices and Android versions.
                 safeTouchEnable()
                 Log.d(TAG, "Wallpaper VISIBLE — ensuring WebSocket is alive")
+
+                // Immediately clear stale local strokes — the server will
+                // re-send the authoritative list via the "init" response.
+                renderHandler.post {
+                    strokes.clear()
+                    drawFrame()
+                }
                 scope.launch {
                     val roomId = savedRoomId
                     val userId = savedUserId
@@ -258,6 +265,12 @@ class DoodluWallpaperService : WallpaperService() {
                         savedUserId = finalUserId
                         SyncManager.resumeForWallpaper(finalRoomId, finalUserId)
                     }
+
+                    // Always request fresh state from the server so the
+                    // wallpaper gets the authoritative stroke list.  This
+                    // fixes stale/cleared drawings surviving because the
+                    // engine was already connected (no new "init" was sent).
+                    SyncManager.requestInit()
                 }
                 // Start the periodic frame loop
                 renderHandler.removeCallbacks(frameRunnable)

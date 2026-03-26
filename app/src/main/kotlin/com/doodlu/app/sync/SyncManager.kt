@@ -417,6 +417,15 @@ object SyncManager {
 
     fun sendNewGame()     { send(JSONObject().apply { put("type", "newgame") }.toString()) }
     fun sendClearCanvas() { send(JSONObject().apply { put("type", "clearcanvas") }.toString()) }
+
+    /**
+     * Ask the server to re-send the authoritative "init" message with the
+     * current room state (strokes, mode, game, etc.). The wallpaper engine
+     * calls this every time it becomes visible so it always shows the
+     * latest canvas — even if strokes were cleared while the engine was
+     * destroyed by Android.
+     */
+    fun requestInit() { send(JSONObject().apply { put("type", "requestInit") }.toString()) }
     /**
      * Kicks the partner out of the room by broadcasting a special mode value.
      * Does NOT update our own currentMode — only the receiving side reacts to "kicked".
