@@ -82,6 +82,8 @@ class DoodluWallpaperService : WallpaperService() {
         // Room credentials loaded from DataStore
         @Volatile private var savedRoomId: String? = null
         @Volatile private var savedUserId: String? = null
+        @Volatile private var savedBgColor: Int = android.graphics.Color.parseColor("#1A1A2E")
+        @Volatile private var savedBgHex: String = "#1A1A2E"
 
         // ── Pre-allocated Paints ──────────────────────────────────────────────
         private val bgPaint = Paint().apply {
@@ -197,10 +199,14 @@ class DoodluWallpaperService : WallpaperService() {
                 val prefs = PreferencesManager(this@DoodluWallpaperService)
                 val roomId = prefs.roomId.first()
                 val userId = prefs.userId.first()
+                val bgHex  = prefs.canvasBgColor.first()
 
                 // Cache for later visibility changes
                 savedRoomId = roomId
                 savedUserId = userId
+                savedBgHex  = bgHex
+                savedBgColor = try { android.graphics.Color.parseColor(bgHex) } catch (_: Exception) { android.graphics.Color.parseColor("#1A1A2E") }
+                bgPaint.color = savedBgColor
 
                 if (!roomId.isNullOrEmpty() && !userId.isNullOrEmpty()) {
                     when (SyncManager.connectionState.value) {
@@ -248,6 +254,13 @@ class DoodluWallpaperService : WallpaperService() {
                     drawFrame()
                 }
                 scope.launch {
+                    // Re-read bg color preference every time we become visible
+                    val prefs = PreferencesManager(this@DoodluWallpaperService)
+                    val bgHex = prefs.canvasBgColor.first()
+                    savedBgHex = bgHex
+                    savedBgColor = try { android.graphics.Color.parseColor(bgHex) } catch (_: Exception) { android.graphics.Color.parseColor("#1A1A2E") }
+                    bgPaint.color = savedBgColor
+
                     val roomId = savedRoomId
                     val userId = savedUserId
 

@@ -30,9 +30,11 @@ fun DrawingCanvas(
     strokeColor: Color,
     strokeWidth: Float,
     isEraser: Boolean,
+    canvasBgColor: Color = Color(0xFF1A1A2E),
     onStrokeComplete: (List<Offset>) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val bgHex = colorToHex(canvasBgColor)
     var currentPath by remember { mutableStateOf(listOf<Offset>()) }
     var lastSentIndex by remember { mutableStateOf(0) }
 
@@ -78,7 +80,7 @@ fun DrawingCanvas(
                             val batch = currentPath.subList(lastSentIndex, currentPath.size)
                             SyncManager.sendStroke(
                                 points = batch.map { Pair(it.x, it.y) },
-                                color = if (isEraser) "#1A1A2E" else colorToHex(strokeColor),
+                                color = if (isEraser) bgHex else colorToHex(strokeColor),
                                 width = strokeWidth
                             )
                             // Overlap: keep last point as start of next batch so
@@ -94,7 +96,7 @@ fun DrawingCanvas(
                             if (batch.size > 1) {
                                 SyncManager.sendStroke(
                                     points = batch.map { Pair(it.x, it.y) },
-                                    color = if (isEraser) "#1A1A2E" else colorToHex(strokeColor),
+                                    color = if (isEraser) bgHex else colorToHex(strokeColor),
                                     width = strokeWidth
                                 )
                             }
@@ -122,7 +124,7 @@ fun DrawingCanvas(
                 val resolvedWidth = if (isEraser) strokeWidth * 2 else strokeWidth
                 val nativePaint = android.graphics.Paint().apply {
                     style = android.graphics.Paint.Style.STROKE
-                    this.color = (if (isEraser) Color(0xFF1A1A2E) else strokeColor).toArgb()
+                    this.color = (if (isEraser) canvasBgColor else strokeColor).toArgb()
                     this.strokeWidth = resolvedWidth
                     isAntiAlias = true
                     strokeCap = android.graphics.Paint.Cap.ROUND

@@ -38,6 +38,18 @@ val CanvasBg         = Color(0xFF1A1A2E)
 val CanvasSurface    = Color(0xFF16213E)
 val CanvasSurfaceVar = Color(0xFF0F3460)
 
+// Canvas background presets
+val CanvasBgPresets = listOf(
+    "#1A1A2E" to "Midnight",   // default dark navy
+    "#000000" to "Pure Black",
+    "#0D1B2A" to "Deep Navy",
+    "#2D2D3A" to "Charcoal",
+    "#1E1E2E" to "Mocha",
+    "#0B0B0F" to "Obsidian",
+    "#1B2838" to "Steam",
+    "#FFFFFF" to "White"
+)
+
 // Drawing colors (updated palette)
 val DrawColorRed     = Color(0xFFE94560)
 val DrawColorCoral   = Color(0xFFFF8A65)

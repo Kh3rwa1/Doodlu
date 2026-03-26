@@ -31,6 +31,7 @@ import com.doodlu.app.ui.components.*
 import com.doodlu.app.ui.theme.*
 import com.doodlu.app.util.buildWallpaperPickerIntent
 import com.doodlu.app.util.isDoodluActiveWallpaper
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +49,12 @@ fun DrawingScreen(
     var selectedColor      by remember { mutableStateOf(DrawColorCoral) }
     var strokeWidth        by remember { mutableStateOf(5f) }
     var isEraser           by remember { mutableStateOf(false) }
+    var showBgPicker       by remember { mutableStateOf(false) }
+
+    // Canvas background color (persisted)
+    val canvasBgHex by prefs.canvasBgColor.collectAsState(initial = "#1A1A2E")
+    val canvasBgColor = remember(canvasBgHex) { hexToColor(canvasBgHex) }
+    val scope = rememberCoroutineScope()
 
     // ── Navigate based on EXPLICIT server mode-switch events only ────────────
     // We intentionally use modeSwitchEvent (SharedFlow) instead of currentMode
@@ -165,20 +172,21 @@ fun DrawingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(CanvasBg)
+            .background(canvasBgColor)
     ) {
-        // ── Full-screen dark drawing canvas ───────────────────────────────
+        // ── Full-screen drawing canvas ─────────────────────────────────────
         DrawingCanvas(
             strokes = strokes,
             partnerCursor = partnerCursor,
             strokeColor = selectedColor,
             strokeWidth = strokeWidth,
             isEraser = isEraser,
+            canvasBgColor = canvasBgColor,
             onStrokeComplete = { points ->
                 if (points.isNotEmpty()) {
                     strokes = strokes + DrawPath(
                         points = points.map { Offset(it.x, it.y) },
-                        color = if (isEraser) Color(0xFF1A1A2E) else selectedColor,
+                        color = if (isEraser) canvasBgColor else selectedColor,
                         width = if (isEraser) strokeWidth * 2 else strokeWidth
                     )
                 }
@@ -323,6 +331,78 @@ fun DrawingScreen(
                 )
             }
 
+            // ── Background color picker (shown on toggle) ─────────────────
+            AnimatedVisibility(
+                visible = showBgPicker,
+                enter = slideInVertically(
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                ) { it } + fadeIn(),
+                exit = slideOutVertically(tween(200)) { it } + fadeOut(tween(150))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = RoundedCornerShape(50.dp),
+                            ambientColor = Color.Black.copy(alpha = 0.08f)
+                        )
+                        .clip(RoundedCornerShape(50.dp))
+                        .background(KawaiiCard)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        "BG",
+                        fontFamily = NunitoFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        color = KawaiiTextSec
+                    )
+                    CanvasBgPresets.forEach { (hex, _) ->
+                        val presetColor = hexToColor(hex)
+                        val isSelected = canvasBgHex.equals(hex, ignoreCase = true)
+                        val circleScale by animateFloatAsState(
+                            targetValue = if (isSelected) 1.3f else 1f,
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                            label = "bg_scale_$hex"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .scale(circleScale)
+                                .shadow(
+                                    elevation = if (isSelected) 4.dp else 0.dp,
+                                    shape = CircleShape,
+                                    spotColor = presetColor.copy(alpha = 0.4f)
+                                )
+                                .clip(CircleShape)
+                                .background(presetColor)
+                                .then(
+                                    if (hex == "#FFFFFF" || hex == "#000000") Modifier.border(
+                                        1.dp, KawaiiTextSec.copy(alpha = 0.3f), CircleShape
+                                    ) else Modifier
+                                )
+                                .then(
+                                    if (isSelected) Modifier.border(
+                                        2.5.dp,
+                                        KawaiiPink,
+                                        CircleShape
+                                    ) else Modifier
+                                )
+                                .clickable(
+                                    interactionSource = remember {
+                                        androidx.compose.foundation.interaction.MutableInteractionSource()
+                                    },
+                                    indication = null
+                                ) {
+                                    scope.launch { prefs.setCanvasBgColor(hex) }
+                                }
+                        )
+                    }
+                }
+            }
+
             // Color picker row
             Row(
                 modifier = Modifier
@@ -428,6 +508,28 @@ fun DrawingScreen(
                         .height(24.dp)
                         .background(KawaiiCodeBorder.copy(alpha = 0.3f))
                 )
+
+                // Background color toggle
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(if (showBgPicker) KawaiiCodeBg else Color.Transparent)
+                        .clickable(
+                            interactionSource = remember {
+                                androidx.compose.foundation.interaction.MutableInteractionSource()
+                            },
+                            indication = null
+                        ) { showBgPicker = !showBgPicker },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.FormatPaint,
+                        contentDescription = "Background Color",
+                        tint = if (showBgPicker) KawaiiPink else KawaiiTextSec,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
 
                 // Eraser
                 Box(

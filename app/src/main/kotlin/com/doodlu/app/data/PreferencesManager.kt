@@ -22,6 +22,7 @@ class PreferencesManager(private val context: Context) {
         val WALLPAPER_TARGET      = stringPreferencesKey("wallpaper_target") // "lock" or "both"
         /** Set to true after the WallpaperSetupScreen has been shown once */
         val WALLPAPER_SETUP_SHOWN = booleanPreferencesKey("wallpaper_setup_shown")
+        val CANVAS_BG_COLOR       = stringPreferencesKey("canvas_bg_color")
     }
 
     val roomId: Flow<String?>          = context.dataStore.data.map { it[ROOM_ID] }
@@ -32,6 +33,7 @@ class PreferencesManager(private val context: Context) {
     /** True if the one-time wallpaper setup screen has already been shown */
     val wallpaperSetupShown: Flow<Boolean> =
         context.dataStore.data.map { it[WALLPAPER_SETUP_SHOWN] ?: false }
+    val canvasBgColor: Flow<String>    = context.dataStore.data.map { it[CANVAS_BG_COLOR] ?: "#1A1A2E" }
 
     suspend fun saveRoom(roomId: String, userId: String, symbol: String) {
         context.dataStore.edit { prefs ->
@@ -61,5 +63,9 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setWallpaperSetupShown(shown: Boolean = true) {
         context.dataStore.edit { it[WALLPAPER_SETUP_SHOWN] = shown }
+    }
+
+    suspend fun setCanvasBgColor(hex: String) {
+        context.dataStore.edit { it[CANVAS_BG_COLOR] = hex }
     }
 }
