@@ -108,6 +108,9 @@ fun DrawingCanvas(
                 )
             }
     ) {
+        // ── Fill background first — this is what makes color changes instant ─
+        drawRect(color = canvasBgColor)
+
         // Draw all completed strokes
         strokes.forEach { path ->
             drawPath(path)
