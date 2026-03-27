@@ -564,6 +564,15 @@ class DoodluWallpaperService : WallpaperService() {
         private fun syncStateFromManager() {
             currentMode = SyncManager.currentMode.value
             tttState = SyncManager.gameState.value.tictactoe
+            
+            // Instantly sync active strokes from the manager cache.
+            // This ensures the wallpaper doesn't open to a blank canvas if 
+            // the device is already connected but the server hasn't sent an update.
+            renderHandler.post {
+                strokes.clear()
+                strokes.addAll(SyncManager.currentStrokes)
+                scheduleRedraw()
+            }
         }
 
         private fun registerListeners() {

@@ -65,6 +65,12 @@ object SyncManager {
     val myUserId        = MutableStateFlow("")
 
     /**
+     * Cache of currently drawn strokes. 
+     * The wallpaper needs this to sync existing drawings when it opens.
+     */
+    val currentStrokes = java.util.concurrent.CopyOnWriteArrayList<Stroke>()
+
+    /**
      * Fires ONLY when the server sends an explicit "switchmode" broadcast.
      * Use this for navigation so that stale "init" state never triggers unwanted
      * screen transitions. The value is the new mode string.
@@ -299,10 +305,12 @@ object SyncManager {
                         if (strokesJson != null) {
                             // Clear local strokes before replaying server state so
                             // stale drawings don't persist after a canvas clear.
+                            currentStrokes.clear()
                             synchronized(canvasListeners) { canvasListeners.forEach { it.onClearCanvas() } }
                             for (i in 0 until strokesJson.length()) {
                                 val stroke = parseStroke(strokesJson.getJSONObject(i))
                                 if (stroke != null) {
+                                    currentStrokes.add(stroke)
                                     synchronized(strokeListeners) {
                                         strokeListeners.forEach { it.onStroke(stroke) }
                                     }
@@ -315,6 +323,7 @@ object SyncManager {
                 "stroke" -> {
                     val stroke = parseStroke(json.getJSONObject("data"))
                     if (stroke != null) {
+                        currentStrokes.add(stroke)
                         synchronized(strokeListeners) { strokeListeners.forEach { it.onStroke(stroke) } }
                     }
                 }
@@ -345,6 +354,7 @@ object SyncManager {
                 }
 
                 "clearcanvas" -> {
+                    currentStrokes.clear()
                     synchronized(canvasListeners) { canvasListeners.forEach { it.onClearCanvas() } }
                 }
 
