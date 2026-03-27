@@ -267,17 +267,22 @@ class DoodluWallpaperService : WallpaperService() {
                         PreferencesManager(this@DoodluWallpaperService).userId.first()
                     } else userId
 
-                    if (!finalRoomId.isNullOrEmpty() && !finalUserId.isNullOrEmpty()) {
-                        savedRoomId = finalRoomId
-                        savedUserId = finalUserId
-                        SyncManager.resumeForWallpaper(finalRoomId, finalUserId)
-                    }
+                    // Only actually connect to the server and sync if we're the real wallpaper.
+                    // If we're just in the lock screen setup preview, stay disconnected 
+                    // so the user gets a clean local sandbox.
+                    if (!isPreview()) {
+                        if (!finalRoomId.isNullOrEmpty() && !finalUserId.isNullOrEmpty()) {
+                            savedRoomId = finalRoomId
+                            savedUserId = finalUserId
+                            SyncManager.resumeForWallpaper(finalRoomId, finalUserId)
+                        }
 
-                    // Always request fresh state from the server so the
-                    // wallpaper gets the authoritative stroke list.  This
-                    // fixes stale/cleared drawings surviving because the
-                    // engine was already connected (no new "init" was sent).
-                    SyncManager.requestInit()
+                        // Always request fresh state from the server so the
+                        // wallpaper gets the authoritative stroke list.  This
+                        // fixes stale/cleared drawings surviving because the
+                        // engine was already connected (no new "init" was sent).
+                        SyncManager.requestInit()
+                    }
                 }
                 // Start the periodic frame loop
                 renderHandler.removeCallbacks(frameRunnable)
@@ -344,24 +349,28 @@ class DoodluWallpaperService : WallpaperService() {
                     currentPoints.clear()
                     currentPoints.add(Pair(x, y))
                     lastSentIndex = 0
-                    SyncManager.sendCursor(x, y)
+                    if (!isPreview()) SyncManager.sendCursor(x, y)
                 }
                 MotionEvent.ACTION_MOVE -> {
                     currentPoints.add(Pair(x, y))
-                    SyncManager.sendCursor(x, y)
-                    if (currentPoints.size - lastSentIndex >= 5) {
-                        val batch = currentPoints.subList(lastSentIndex, currentPoints.size).toList()
-                        SyncManager.sendStroke(batch, "#FFFFFF", 4f)
-                        // Overlap: keep last point as start of next batch so
-                        // consecutive segments connect without gaps.
-                        lastSentIndex = currentPoints.size - 1
+                    if (!isPreview()) {
+                        SyncManager.sendCursor(x, y)
+                        if (currentPoints.size - lastSentIndex >= 5) {
+                            val batch = currentPoints.subList(lastSentIndex, currentPoints.size).toList()
+                            SyncManager.sendStroke(batch, "#FFFFFF", 4f)
+                            // Overlap: keep last point as start of next batch so
+                            // consecutive segments connect without gaps.
+                            lastSentIndex = currentPoints.size - 1
+                        }
                     }
                     // Already on renderHandler — draw immediately instead of posting
                     drawFrame()
                 }
                 MotionEvent.ACTION_UP -> {
                     val remaining = currentPoints.subList(lastSentIndex, currentPoints.size).toList()
-                    if (remaining.size > 1) SyncManager.sendStroke(remaining, "#FFFFFF", 4f)
+                    if (!isPreview() && remaining.size > 1) {
+                        SyncManager.sendStroke(remaining, "#FFFFFF", 4f)
+                    }
                     strokes.add(Stroke(currentPoints.toList(), "#FFFFFF", 4f))
                     currentPoints.clear()
                     lastSentIndex = 0
@@ -387,7 +396,9 @@ class DoodluWallpaperService : WallpaperService() {
             val row = ((event.y - startY) / cellSize).toInt()
             if (col in 0..2 && row in 0..2) {
                 val square = row * 3 + col
-                if (tttState.board[square] == null) SyncManager.sendMove(square)
+                if (tttState.board[square] == null && !isPreview()) {
+                    SyncManager.sendMove(square)
+                }
             }
         }
 
@@ -568,10 +579,18 @@ class DoodluWallpaperService : WallpaperService() {
             // Instantly sync active strokes from the manager cache.
             // This ensures the wallpaper doesn't open to a blank canvas if 
             // the device is already connected but the server hasn't sent an update.
-            renderHandler.post {
-                strokes.clear()
-                strokes.addAll(SyncManager.currentStrokes)
-                scheduleRedraw()
+            // However, if we're just in the setup preview, the user wants a blank canvas.
+            if (!isPreview()) {
+                renderHandler.post {
+                    strokes.clear()
+                    strokes.addAll(SyncManager.currentStrokes)
+                    scheduleRedraw()
+                }
+            } else {
+                renderHandler.post {
+                    strokes.clear()
+                    scheduleRedraw()
+                }
             }
         }
 
