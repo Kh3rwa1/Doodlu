@@ -1,4 +1,4 @@
-package com.doodlu.app.ui.navigation
+package com.celestial.spire.ui.navigation
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.doodlu.app.ui.screens.*
+import com.celestial.spire.ui.screens.*
 
 sealed class Screen(val route: String) {
     object Splash          : Screen("splash")

@@ -1,4 +1,4 @@
-package com.doodlu.app.wallpaper
+package com.celestial.spire.wallpaper
 
 import android.app.Service
 import android.content.Intent
@@ -9,11 +9,11 @@ import android.service.wallpaper.WallpaperService
 import android.util.Log
 import android.view.MotionEvent
 import android.view.SurfaceHolder
-import com.doodlu.app.data.PreferencesManager
-import com.doodlu.app.model.Stroke
-import com.doodlu.app.model.TicTacToeState
-import com.doodlu.app.sync.ConnectionState
-import com.doodlu.app.sync.SyncManager
+import com.celestial.spire.data.PreferencesManager
+import com.celestial.spire.model.Stroke
+import com.celestial.spire.model.TicTacToeState
+import com.celestial.spire.sync.ConnectionState
+import com.celestial.spire.sync.SyncManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 

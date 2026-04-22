@@ -1,4 +1,4 @@
--keep class com.doodlu.app.** { *; }
+-keep class com.celestial.spire.** { *; }
 -keepattributes *Annotation*
 -dontwarn okhttp3.**
 -dontwarn okio.**

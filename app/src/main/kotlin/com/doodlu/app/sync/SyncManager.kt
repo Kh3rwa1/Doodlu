@@ -1,9 +1,9 @@
-package com.doodlu.app.sync
+package com.celestial.spire.sync
 
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
-import com.doodlu.app.model.*
+import com.celestial.spire.model.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import okhttp3.*
 import org.json.JSONArray

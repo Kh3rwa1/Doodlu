@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.doodlu.app"
+    namespace = "com.celestial.spire"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.doodlu.app"
+        applicationId = "com.celestial.spire"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -20,8 +20,20 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            if (project.hasProperty("MYAPP_UPLOAD_STORE_FILE")) {
+                storeFile = file(project.property("MYAPP_UPLOAD_STORE_FILE") as String)
+                storePassword = project.property("MYAPP_UPLOAD_STORE_PASSWORD") as String
+                keyAlias = project.property("MYAPP_UPLOAD_KEY_ALIAS") as String
+                keyPassword = project.property("MYAPP_UPLOAD_KEY_PASSWORD") as String
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

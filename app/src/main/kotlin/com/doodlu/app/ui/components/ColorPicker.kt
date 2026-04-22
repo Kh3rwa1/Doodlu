@@ -1,4 +1,4 @@
-package com.doodlu.app.ui.components
+package com.celestial.spire.ui.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -12,7 +12,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.doodlu.app.ui.theme.DrawingColorsCompose
+import com.celestial.spire.ui.theme.DrawingColorsCompose
 
 @Composable
 fun ColorPicker(

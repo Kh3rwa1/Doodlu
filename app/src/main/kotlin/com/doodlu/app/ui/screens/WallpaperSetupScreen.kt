@@ -1,4 +1,4 @@
-package com.doodlu.app.ui.screens
+package com.celestial.spire.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,10 +23,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doodlu.app.data.PreferencesManager
-import com.doodlu.app.ui.components.*
-import com.doodlu.app.ui.theme.*
-import com.doodlu.app.util.buildWallpaperPickerIntent
+import com.celestial.spire.data.PreferencesManager
+import com.celestial.spire.ui.components.*
+import com.celestial.spire.ui.theme.*
+import com.celestial.spire.util.buildWallpaperPickerIntent
 import kotlinx.coroutines.launch
 
 @Composable

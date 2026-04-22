@@ -1,4 +1,4 @@
-package com.doodlu.app.model
+package com.celestial.spire.model
 
 data class TicTacToeState(
     val board: List<String?> = List(9) { null }, // null, "X", or "O"

@@ -1,4 +1,4 @@
-package com.doodlu.app.ui.screens
+package com.celestial.spire.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,13 +24,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doodlu.app.data.PreferencesManager
-import com.doodlu.app.sync.ConnectionState
-import com.doodlu.app.sync.SyncManager
-import com.doodlu.app.ui.components.*
-import com.doodlu.app.ui.theme.*
-import com.doodlu.app.util.buildWallpaperPickerIntent
-import com.doodlu.app.util.isDoodluActiveWallpaper
+import com.celestial.spire.data.PreferencesManager
+import com.celestial.spire.sync.ConnectionState
+import com.celestial.spire.sync.SyncManager
+import com.celestial.spire.ui.components.*
+import com.celestial.spire.ui.theme.*
+import com.celestial.spire.util.buildWallpaperPickerIntent
+import com.celestial.spire.util.isDoodluActiveWallpaper
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,7 +99,7 @@ fun DrawingScreen(
     // Listeners
     DisposableEffect(Unit) {
         val strokeListener = object : SyncManager.StrokeListener {
-            override fun onStroke(stroke: com.doodlu.app.model.Stroke) {
+            override fun onStroke(stroke: com.celestial.spire.model.Stroke) {
                 val points = stroke.points.map { (x, y) -> Offset(x, y) }
                 strokes = strokes + DrawPath(points, hexToColor(stroke.color), stroke.width, isLocal = false)
             }

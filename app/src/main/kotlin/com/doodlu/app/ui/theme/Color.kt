@@ -1,4 +1,4 @@
-package com.doodlu.app.ui.theme
+package com.celestial.spire.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

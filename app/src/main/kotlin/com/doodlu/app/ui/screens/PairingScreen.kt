@@ -1,4 +1,4 @@
-package com.doodlu.app.ui.screens
+package com.celestial.spire.ui.screens
 
 import android.content.Intent
 import android.graphics.SurfaceTexture
@@ -40,11 +40,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.doodlu.app.R
-import com.doodlu.app.data.PreferencesManager
-import com.doodlu.app.sync.SyncManager
-import com.doodlu.app.ui.components.*
-import com.doodlu.app.ui.theme.*
+import com.celestial.spire.R
+import com.celestial.spire.data.PreferencesManager
+import com.celestial.spire.sync.SyncManager
+import com.celestial.spire.ui.components.*
+import com.celestial.spire.ui.theme.*
 import kotlinx.coroutines.launch
 import java.util.UUID
 

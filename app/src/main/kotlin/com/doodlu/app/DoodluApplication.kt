@@ -1,4 +1,4 @@
-package com.doodlu.app
+package com.celestial.spire
 
 import android.app.Application
 

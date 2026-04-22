@@ -1,4 +1,4 @@
-package com.doodlu.app.ui.components
+package com.celestial.spire.ui.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -14,8 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doodlu.app.sync.ConnectionState
-import com.doodlu.app.sync.SyncManager
+import com.celestial.spire.sync.ConnectionState
+import com.celestial.spire.sync.SyncManager
 
 @Composable
 fun ConnectionIndicator(

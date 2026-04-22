@@ -1,4 +1,4 @@
-package com.doodlu.app.model
+package com.celestial.spire.model
 
 data class Stroke(
     val points: List<Pair<Float, Float>>,

@@ -1,4 +1,4 @@
-package com.doodlu.app.ui.components
+package com.celestial.spire.ui.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -11,8 +11,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
-import com.doodlu.app.model.Stroke as DoodluStroke
-import com.doodlu.app.sync.SyncManager
+import com.celestial.spire.model.Stroke as DoodluStroke
+import com.celestial.spire.sync.SyncManager
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 
 data class DrawPath(

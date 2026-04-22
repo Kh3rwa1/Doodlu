@@ -1,4 +1,4 @@
-package com.doodlu.app.ui.components
+package com.celestial.spire.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
@@ -26,7 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doodlu.app.ui.theme.*
+import com.celestial.spire.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlin.math.sin
 

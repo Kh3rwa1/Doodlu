@@ -1,4 +1,4 @@
-package com.doodlu.app.ui.screens
+package com.celestial.spire.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
@@ -22,10 +22,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.doodlu.app.model.TicTacToeState
-import com.doodlu.app.sync.SyncManager
-import com.doodlu.app.ui.components.*
-import com.doodlu.app.ui.theme.*
+import com.celestial.spire.model.TicTacToeState
+import com.celestial.spire.sync.SyncManager
+import com.celestial.spire.ui.components.*
+import com.celestial.spire.ui.theme.*
 
 @Composable
 fun TicTacToeScreen(onBackToDrawing: () -> Unit) {
@@ -35,7 +35,7 @@ fun TicTacToeScreen(onBackToDrawing: () -> Unit) {
     val playerCount  by SyncManager.playerCount.collectAsState()
     var showConfetti by remember { mutableStateOf(false) }
     var prevWinner   by remember { mutableStateOf<String?>(null) }
-    val isConnected  = connState == com.doodlu.app.sync.ConnectionState.CONNECTED
+    val isConnected  = connState == com.celestial.spire.sync.ConnectionState.CONNECTED
 
     // ── Safe Navigation State Handling ────────────────────────────
     var hasNavigatedBack by remember { mutableStateOf(false) }

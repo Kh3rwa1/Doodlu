@@ -1,4 +1,4 @@
-package com.doodlu.app
+package com.celestial.spire
 
 import android.app.WallpaperManager
 import android.content.ComponentName
@@ -9,13 +9,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
-import com.doodlu.app.data.PreferencesManager
-import com.doodlu.app.sync.ConnectionState
-import com.doodlu.app.sync.SyncManager
-import com.doodlu.app.ui.navigation.DoodluNavGraph
-import com.doodlu.app.ui.navigation.Screen
-import com.doodlu.app.ui.theme.DoodluTheme
-import com.doodlu.app.wallpaper.DoodluWallpaperService
+import com.celestial.spire.data.PreferencesManager
+import com.celestial.spire.sync.ConnectionState
+import com.celestial.spire.sync.SyncManager
+import com.celestial.spire.ui.navigation.DoodluNavGraph
+import com.celestial.spire.ui.navigation.Screen
+import com.celestial.spire.ui.theme.DoodluTheme
+import com.celestial.spire.wallpaper.DoodluWallpaperService
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 

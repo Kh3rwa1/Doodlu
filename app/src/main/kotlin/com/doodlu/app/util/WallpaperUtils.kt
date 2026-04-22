@@ -1,10 +1,10 @@
-package com.doodlu.app.util
+package com.celestial.spire.util
 
 import android.app.WallpaperManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import com.doodlu.app.wallpaper.DoodluWallpaperService
+import com.celestial.spire.wallpaper.DoodluWallpaperService
 
 /**
  * Returns true if DoodluWallpaperService is currently the active live wallpaper

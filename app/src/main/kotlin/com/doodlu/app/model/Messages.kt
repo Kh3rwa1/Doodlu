@@ -1,4 +1,4 @@
-package com.doodlu.app.model
+package com.celestial.spire.model
 
 sealed class IncomingMessage {
     data class Init(

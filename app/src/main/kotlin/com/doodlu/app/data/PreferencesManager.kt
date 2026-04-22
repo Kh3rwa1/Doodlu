@@ -1,4 +1,4 @@
-package com.doodlu.app.data
+package com.celestial.spire.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
